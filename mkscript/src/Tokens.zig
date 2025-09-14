@@ -102,7 +102,7 @@ pub fn tokenize(input: []const u8, alloc: std.mem.Allocator) ![]Token {
                 },
             }
         }
-        break;
+        return error.Invalid;
     }
 
     return try list.toOwnedSlice(alloc);
