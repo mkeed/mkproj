@@ -7,6 +7,9 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const alloc = gpa.allocator();
 
-    var t = Term.init(alloc);
+    var t = try Term.init(alloc);
     defer t.deinit();
+    try t.draw();
+
+    std.Thread.sleep(2000 * std.time.ns_per_ms);
 }
