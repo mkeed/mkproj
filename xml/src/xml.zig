@@ -2,12 +2,10 @@ const std = @import("std");
 
 const ArenaAllocator = std.heap.ArenaAllocator;
 
-const Node = struct {};
-
 pub const XmlDoc = struct {
     arena: *ArenaAllocator,
     //data: []const u8,
-    nodes: std.ArrayList(Node),
+    root: *Node,
     pub fn init(alloc: std.mem.Allocator) !XmlDoc {
         const arena = try alloc.create(ArenaAllocator);
         errdefer arena.deinit();
@@ -16,7 +14,7 @@ pub const XmlDoc = struct {
 
         return .{
             .arena = arena,
-            .nodes = std.ArrayList(Node){},
+            .root = undefined,
         };
     }
 
@@ -58,30 +56,101 @@ const Reader = struct {
     }
 };
 
+const SubNode = union(enum) {
+    node: *Node,
+    text: []const u8,
+};
+
+const Node = struct {
+    name: []const u8,
+    subNode: []const SubNode,
+};
+
+const NodeBuilder = struct {
+    const ActiveNode = struct {
+        name: []const u8,
+        subItems: std.ArrayList(SubNode),
+    };
+    alloc: std.mem.Allocator,
+    stack: std.ArrayList(ActiveNode),
+
+    depth: usize = 0,
+
+    pub fn add_text(self: *NodeBuilder, data: []const u8) !void {
+        if (self.stack.items.len == 0) return error.ExpectedItem;
+        if (data.len == 0) return;
+        try self.stack.items[self.stack.items.len - 1].subItems.append(self.alloc, .{ .text = data });
+        //std.log.err("[{} => `{s}`]", .{ self.depth, data });
+    }
+
+    pub fn push_node(self: *NodeBuilder, tag: []const u8) !void {
+        try self.stack.append(self.alloc, .{ .name = "TODO", .subItems = .{} });
+        self.depth += 1;
+        _ = tag;
+        //std.log.err("push[{} => {s}]", .{ self.depth, tag });
+    }
+
+    pub fn pop_node(self: *NodeBuilder, tag: []const u8) !*Node {
+        var builder_node = self.stack.pop() orelse return error.TooManyCloses;
+        const node = try self.alloc.create(Node);
+        node.* = .{
+            .name = builder_node.name,
+            .subNode = try builder_node.subItems.toOwnedSlice(self.alloc),
+        };
+        self.depth -= 1;
+        _ = tag;
+        //std.log.err("pop[{} => {s}]", .{ self.depth, tag });
+        return node;
+    }
+
+    pub fn empty_node(self: *NodeBuilder, tag: []const u8) !void {
+        //std.log.err("empty[{} => {s}]", .{ self.depth, tag });
+        _ = tag;
+        const node = try self.alloc.create(Node);
+        node.* = .{
+            .name = "TODO",
+            .subNode = &.{},
+        };
+        try self.stack.items[self.stack.items.len - 1].subItems.append(
+            self.alloc,
+            .{ .node = node },
+        );
+    }
+};
+
 pub fn parse(data: []const u8, alloc: std.mem.Allocator) !XmlDoc {
     var doc = try XmlDoc.init(alloc);
     errdefer doc.deinit();
     var reader = Reader{ .data = data };
 
-    if (std.mem.eql(u8, magic_number, data[0..magic_number.len])) {
-        const end_of_declaration = std.mem.indexOf(u8, data, end_of_decl) orelse return error.Malformed;
-        reader.take(end_of_declaration + end_of_decl.len);
-        std.log.err("dec:[{s}]", .{data[0 .. end_of_declaration + end_of_decl.len]});
-        reader.skipWhitespace();
-    }
+    var builder = NodeBuilder{
+        .alloc = doc.arena.allocator(),
+        .stack = .{},
+    };
+    try builder.push_node("root");
     while (true) {
-        const xml_data = try reader.until('<');
-        std.log.err("[{s}]", .{xml_data});
+        const xml_data = reader.until('<') catch |err| {
+            switch (err) {
+                error.EndOfStream => break,
+                else => return err,
+            }
+        };
+        if (xml_data.len != 0) {
+            try builder.add_text(xml_data);
+        }
         const tag = try reader.until('>');
         if (tag[0] == '/') {
-            std.log.err("end_tag[{s}]", .{tag});
+            _ = try builder.pop_node(tag[1..]);
         } else if (tag[tag.len - 1] == '/') {
-            std.log.err("empty_tag[{s}]", .{tag});
+            _ = try builder.empty_node(tag[0 .. tag.len - 2]);
+        } else if (tag[0] == '?') {
+            std.log.err("Declaration[{s}]", .{tag});
         } else {
-            std.log.err("tag[{s}]", .{tag});
+            _ = try builder.push_node(tag);
         }
         reader.skipWhitespace();
     }
+    doc.root = try builder.pop_node("root");
     return doc;
 }
 
@@ -99,4 +168,5 @@ test {
 
     const doc = try parse(writer.written(), std.testing.allocator);
     defer doc.deinit();
+    //std.lo
 }

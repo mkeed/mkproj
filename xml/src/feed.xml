@@ -1,0 +1,2027 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><link
+    href="https://matklad.github.io/feed.xml"
+    rel="self"
+    type="application/atom+xml"
+  /><link
+    href="https://matklad.github.io"
+    rel="alternate"
+    type="text/html"
+  /><updated>2025-09-17T00:32:13.170Z</updated><id
+  >https://matklad.github.io/feed.xml</id><title type="html"
+  >matklad</title><subtitle>Matklad&#039;s Arts&amp;Crafts</subtitle><author
+  ><name>Alex Kladov</name></author><entry><title type="text"
+    >Look Out For Bugs</title><link
+      href="https://matklad.github.io/2025/09/04/look-for-bugs.html"
+      rel="alternate"
+      type="text/html"
+      title="Look Out For Bugs"
+    /><published>2025-09-04T00:00:00+00:00</published><updated
+    >2025-09-04T00:00:00+00:00</updated><id
+    >https://matklad.github.io/2025/09/04/look-for-bugs</id><author><name
+      >Alex Kladov</name></author><summary
+      type="html"
+    ><![CDATA[One of my biggest mid-career shifts in how I write code was internalizing the idea from this post:
+Don't Write Bugs]]></summary><content
+      type="html"
+      xml:base="https://matklad.github.io/2025/09/04/look-for-bugs.html"
+    ><![CDATA[
+<header>
+  <h1>Look Out For Bugs</h1>
+  <time class="meta" datetime="2025-09-04">Sep 4, 2025</time>
+</header>
+<p>One of my biggest mid-career shifts in how I write code was internalizing the idea from this post:
+<a href="https://www.teamten.com/lawrence/programming/dont-write-bugs.html" class="display"><em>Don’t Write Bugs</em></a></p>
+<p>Historically, I approached coding with an iteration-focused mindset — you write a draft version of
+a program, you set up some kind of a test to verify that it does what you want it to do, and then
+you just quickly iterate on your draft until the result passes all the checks.</p>
+<p>This was a great approach when I was only learning to code, as it allowed me to iterate past the
+things which were not relevant for me at that point, and focus on what matters. Who cares if it is
+<code>String args</code> or <code>String[] args</code> in the “паблик статик войд мэйн стринг а-эр-джи-эс”, it’s just some
+obscure magic spell anyway, and completely irrelevant to the maze-traversing thingy I am working on!</p>
+<p>Carrying over this approach past the learning phase was a mistake. As Lawrence points out, while you
+<em>can</em> spend time chasing bugs in the freshly written code, it is possible to dramatically cut the
+amount of bugs you introduce in the first place, if you focus on optimizing that (and not just the
+iteration time). It felt (and still feels) like a superpower!</p>
+<p>But there’s already a perfectly fine article about not making bugs, so I am not going to duplicate
+it. Instead, I want to share a related, but different super power:</p>
+
+<figure class="blockquote">
+<blockquote><p>You can find bugs by just reading code.</p>
+</blockquote>
+
+</figure>
+<p>I remember feeling this superpower for the first time. I was investigating various rope
+implementations, and, as a part of that, I looked at the <code>ImmutableText.java</code>, the implementation
+powering IntelliJ, very old and battle tested code.  And, by just reading the code, I found a bug,
+<a href="https://github.com/JetBrains/intellij-community/commit/b16987177e6023cd971d22a503663b7d63691bb2">since fixed</a>.
+It wasn’t hard, the original code is just 500 lines of verbose Java (yup, that’s all that you need
+for a production rope). And I wasn’t even <em>trying</em> to find a bug, it just sort-of jumped out at me
+while I was trying to understand how the code works.</p>
+<p>That is, you can find some existing piece of software, carefully skim through implementation, and
+discover real problems that can be fixed. You can do this to <em>your</em> software as well! By just
+re-reading a module you wrote last year, you might find subtle problems.</p>
+<p>I regularly discover TigerBeetle issues by just covering this or that topic on
+<a href="https://www.youtube.com/watch?v=hPUL8Xo6MJw&amp;list=PL9eL-xg48OM3pnVqFSRyBFleHtBBw-nmZ">IronBeetle</a>:
+<a href="https://youtu.be/2_IJJZFMH2M?si=oNnqd8oCckXo8OLf&amp;t=1691">bug discovered live</a>,
+<a href="https://youtu.be/2_IJJZFMH2M?si=hluxJXQuK3XtDT3I&amp;t=2090">fixed</a>,
+<a href="https://github.com/tigerbeetle/tigerbeetle/pull/3194">and PR merged</a>.</p>
+<p>Here are some tips for getting better at this:</p>
+<p>The key is careful, slow reading. What you actually are doing is building the mental model of a
+program inside your head. Reading the source code is just an instrument for achieving that goal. I
+can’t emphasize this enough: programming is all about building a precise understanding inside your
+mind, and then looking for the diff between your brain and what’s in git.</p>
+<p>Don’t dodge an opportunity to read more of the code. If you are reviewing a PR, don’t review <em>just</em>
+the diff, review the entire subsystem. When writing code, don’t hesitate to stop and to probe and
+feel the context around. Go for <code>git blame</code> or <code>git log -S</code> to understand the historical “why” of
+the code.</p>
+<p>When reading, <em>mostly</em> ignore the textual order, don’t just read each source file top-down. Instead,
+use these two other frames:</p>
+<dl>
+<dt>Follow the control flow</dt>
+<dd>
+<p>Start at <code>main</code> or subsystem equivalent, and use “goto definition” to follow an imaginary program
+counter.</p>
+</dd>
+<dt>Stare at the state</dt>
+<dd>
+<p>Identify the key data structures and fields, and search for all all places where they are
+created and modified.</p>
+</dd>
+</dl>
+<p>You want to see a slice across space and time, state and control flow (c.f.
+<a href="https://matklad.github.io/2021/04/26/concurrent-expression-problem.html"><em>Concurrent Expression Problem</em></a>).</p>
+<p>Just earlier today I used the second trick to debug an issue for which I haven’t got a repro.
+I identified
+<code class="display">connection.peer = header_peer;</code>
+as the key assignment that was recently introduced, then <kbd><kbd>ctrl </kbd>+<kbd> f</kbd></kbd> for <code>connection.peer</code>, and
+that immediately revealed a gap in my mental model. Note how this was helped by the fact that the
+thing in question, <code>connection</code>, was always called that in the source code! If your language allows
+it, avoid <code>self</code>, use proper names.</p>
+<p>Identify and collect specific error-prone patterns or general smells in the code. In Zig, if there’s
+an allocator and a <code>try</code> in the same scope, <a href="https://matklad.github.io/2025/08/16/reserve-first.html">you need to be very
+careful</a>. If there’s an isolated tricky
+function, it’s probably fine. If there’s a tricky <em>interaction</em> between functions, it is a smell,
+and some bugs are lurking there.</p>
+<hr>
+<p>Bottom line: reading the code is surprisingly efficient at proactively revealing problems.
+Create space for calm reading. When reading, find ways to build mental models quickly, this is not
+entirely trivial.</p>
+]]></content></entry><entry
+  ><title type="text">Vibe Coding Terminal Editor</title><link
+      href="https://matklad.github.io/2025/08/31/vibe-coding-terminal-editor.html"
+      rel="alternate"
+      type="text/html"
+      title="Vibe Coding Terminal Editor"
+    /><published>2025-08-31T00:00:00+00:00</published><updated
+    >2025-08-31T00:00:00+00:00</updated><id
+    >https://matklad.github.io/2025/08/31/vibe-coding-terminal-editor</id><author
+    ><name>Alex Kladov</name></author><summary
+      type="html"
+    ><![CDATA[I wrote a small tool for myself as my biannual
+routine check of where llms are currently at. I think I've learned a bunch from this exercise. This
+is frustrating! I don't want to learn by trial and error, I'd rather read someone's blog post with
+lessons learned. Sadly, most of the writing on the topic that percolates to me tends to be
+high-level --- easy to nod along while reading, but hard to extract actionable lessons. So this is
+what I want to do here, list specific tricks learned.]]></summary><content
+      type="html"
+      xml:base="https://matklad.github.io/2025/08/31/vibe-coding-terminal-editor.html"
+    ><![CDATA[
+<header>
+  <h1>Vibe Coding Terminal Editor</h1>
+  <time class="meta" datetime="2025-08-31">Aug 31, 2025</time>
+</header>
+<p>I “wrote” <a href="https://github.com/matklad/terminal-editor/">a small tool</a> for myself as my biannual
+routine check of where llms are currently at. I think I’ve learned a bunch from this exercise. This
+is frustrating! I don’t want to learn by trial and error, I’d rather read someone’s blog post with
+lessons learned. Sadly, <em>most</em> of the writing on the topic that percolates to me tends to be
+high-level — easy to nod along while reading, but hard to extract actionable lessons. So this is
+what I want to do here, list specific tricks learned.</p>
+<section id="Terminal-Editor">
+
+<h2><a href="#Terminal-Editor">Terminal Editor</a></h2>
+<p>Let me quickly introduce the project. It’s a VS Code extension that allows me to run “shell”  inside
+my normal editor widget, such that the output is normal text buffer where all standard
+motion/editing commands work. So I can “goto definition” on paths printed as a part of backtrace,
+use multiple cursors to copy compiler’s suggestions, or just <kbd><kbd>PageUp</kbd></kbd> / <kbd><kbd>PageDown</kbd></kbd> to
+scroll the output. If you are familiar with Emacs, it’s
+<a href="https://www.gnu.org/software/emacs/manual/html_mono/eshell.html">Eshell</a>, just worse:</p>
+
+<figure>
+
+<img alt="" src="https://github.com/user-attachments/assets/acaf653e-a170-4685-8cce-5ca8dd31b9b4" width="1398" height="1086">
+</figure>
+<p>I now use <code>terminal-editor</code> to launch most of my compilation commands, as it has several niceties on
+top of what my normal shell provides. For example, by default only the last 50 lines of output are
+shown, but I can hit tab to fold and unfold full output. Such a simple feature, but such a pain to
+implement in a UNIX shell/terminal!</p>
+<p>What follows is an unstructured bag of things learned:</p>
+</section>
+<section id="Plan-Reset">
+
+<h2><a href="#Plan-Reset">Plan / Reset</a></h2>
+<p>I originally tried to use <code>claude</code> code normally, by iteratively prompting in the terminal until I
+get the output I want. This was frustrating, as it was too easy to miss a good place to commit a
+chunk of work, or to rein in a conversation going astray. This “prompting-then-waiting” mode also had
+a pattern of mental context switches not matching my preferred style of work. This article suggests
+a better workflow: <a href="https://harper.blog/2025/05/08/basic-claude-code/" class="display url">https://harper.blog/2025/05/08/basic-claude-code/</a></p>
+<p>Instead of writing your single prompt in the terminal, you write an entire course of action as a
+task list in <code>plan.md</code> document, and the actual prompt is then something along the lines of</p>
+
+<figure class="blockquote">
+<blockquote><p>Read @plan.md, complete the next task, and mark it with <code>X</code>.</p>
+</blockquote>
+
+</figure>
+<p>After <code>claude</code> finishes iterating on a step you look at the diff and interactively prompt for
+necessary corrections. When you are happy, <code>git commit</code> and <code>/clear</code> the conversation, to start the
+next step from the clean slate.</p>
+<p>The plan pattern reduces context switches, because it allows you to plan several steps ahead, while
+you are in the planning mode, even if it makes sense to do the work one step at a time. I often also
+work on continuing the plan when <code>claude</code> is working on the current task.</p>
+</section>
+<section id="Whiteboard-Agent-Metaphor">
+
+<h2><a href="#Whiteboard-Agent-Metaphor">Whiteboard / Agent Metaphor</a></h2>
+<p>A brilliant metaphor from another post
+<a href="https://crawshaw.io/blog/programming-with-agents" class="display url">https://crawshaw.io/blog/programming-with-agents</a>
+is that prompting LLM for some coding task and then expecting it to one-shot a working solution is
+quite a bit like asking a candidate to whiteboard an algorithm during the interview.</p>
+<p>LLMs are clearly superhuman at whiteboarding, but you can’t go far without feedback. “Agentic”
+programming like <code>claude</code> allows LLMs to iterate on solution.</p>
+<p>LLMs are <em>much</em> better at whiteboarding than at iterating. My experience is that, starting with
+suboptimal solution, LLM generally can’t improve it by itself along the fuzzy aesthetic metrics I
+care about. They can make valid changes, but the overall quality stays roughly the same.</p>
+<p>However, LLMs are tenacious, and can do a lot of iterations. If you <em>do</em> have a value function, you
+can use it to extract useful work from random walk! A <em>bad</em> value function is human judgement.
+Sitting in the loop with LLM and pointing out mistakes is both frustrating and slow (you are the
+bottleneck). In contrast “make this test green” is very efficient at getting working (≠ good)
+code.</p>
+</section>
+<section id="Spec-Is-Code-Is-Tests">
+
+<h2><a href="#Spec-Is-Code-Is-Tests">Spec Is Code Is Tests</a></h2>
+<p>LLMs are good at “closing the loop”, they can make the ends meet. This insight combined with the
+<code>plan.md</code> pattern gives my current workflow — spec ↔ code ↔ test loop. Here’s the story:</p>
+<p>I coded the first version of <code>terminal-editor</code> using just the <code>plan.md</code> pattern, but at some point I
+hit complexity wall. I realized that my original implementation strategy for syntax highlighting was
+a dead end, and I needed to change it, but that was hard to do without making a complete mess of the
+code. The accumulated <code>plan.md</code> reflected a bunch of historical detours, and the tests were too
+brittle and coupled to the existing implementation (more on tests later). This worked for
+incremental additions, but now I wanted to change something in the middle.</p>
+<p>I realized that what I want is not an append-only <code>plan.md</code> that reflects history, but rather a
+mutable <code>spec.md</code> that describes clearly how the software should behave. For normal engineering,
+this would have been “damn, I guess I need to throw one out and start afresh” moment. With <code>claude</code>,
+I added <code>plan.md</code> and all the code to the context and asked it to write <code>spec.md</code> file in the same
+task list format. There are two insights here:</p>
+<p><em>First</em>, mutable spec is a good way to instruct LLM. When I want to apply a change to
+<code>terminal-editor</code> now, I prompt <code>claude</code> to update the spec first (unchecking any items that need
+re-doing), manually review/touch-up the spec, and use a canned prompt to align the code and tests
+with the spec.</p>
+<p><em>Second</em>, that you can think of an LLM as a machine translation, which can automatically convert
+between working code, specification, and tests. You can treat <em>any</em> of those things as an input, as
+if you are coding in <a href="https://minikanren.org">miniKanren</a>!</p>
+</section>
+<section id="Tests">
+
+<h2><a href="#Tests">Tests</a></h2>
+<p>I did have this idea of closing the loop when I started with <code>terminal-editor</code>, so I crafted the
+prompts to emphasize testing. You can guess the result! <code>claude</code> wrote a lot of tests, following all
+the modern “best practices” — a deluge of unit tests that were just needlessly nailing down
+internal API, a jungle of bug-hiding mocks, and a bunch of unfocused integration tests which were
+slow, flaky, and contained a copious amount of sleeps to paper over synchronization bugs. Really,
+this was eerily similar to a typical test suite you can find in the wild. I am wondering why is
+that?</p>
+<p>This is perhaps my main take away: if I am vibe-coding anything again, and I want to maintain it and
+not just one-shot it, I will think very hard about the testing strategy. Really, to tout my own
+horn, I think that perhaps <a href="https://matklad.github.io/2021/05/31/how-to-test.html"><em>How to Test?</em></a>
+is the best article out there about agentic coding. Test iteration is a multiplier for humans, but a
+hard requirement for LLMs. Test must be very fast, non-flaky, and should end-to-end test application
+<em>features</em>, rather than code.</p>
+<p>Concretely, I just completely wiped out all the existing tests. Then I added testing strategy to the
+spec. There are two functions:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">export</span> <span class="hl-keyword">async</span> <span class="hl-keyword">function</span> <span class="hl-title function_">sync</span>(<span class="hl-params"></span>): <span class="hl-title class_">Promise</span>&lt;<span class="hl-built_in">void</span>&gt;</span>
+<span class="line"><span class="hl-keyword">export</span> <span class="hl-keyword">function</span> <span class="hl-title function_">snapshot</span>(<span class="hl-params"></span>): <span class="hl-built_in">string</span></span></code></pre>
+
+</figure>
+<p>The <code>sync</code> function waits for all outstanding async work (like external processes) to finish. This
+requires properly threading causality throughout the code. E.g., there’s a promise you can <code>await</code>
+on to join currently running process. The <code>snapshot</code> function captures the entire state of the
+extension as a single string. There’s just one mock for the clock (another improvement on the
+usual terminal — process runtime is always show).</p>
+<p>Then, I prompted <code>claude</code> with something along the lines of</p>
+
+<figure class="blockquote">
+<blockquote><p>Oups, looks like someone wiped out all the tests here, but the code and the spec look decent,
+could you re-create the test suite using <code>snapshot</code> function as per @spec.md?</p>
+</blockquote>
+
+</figure>
+<p>It worked. Again, “throw one away” is very cheap.</p>
+</section>
+<section id="Conclusions">
+
+<h2><a href="#Conclusions">Conclusions</a></h2>
+<p>That’s it! LLMs obviously can code. You need to hold them right. In particular, you need to engineer
+a  feedback loop to let LLM iterate at its own pace. You don’t want human in the “data plane” of the
+loop, only in the control plane.
+Learn to <a href="https://matklad.github.io/2021/05/31/how-to-test.html">architecture for testing</a>.</p>
+<p>LLM drastically reduce the activation energy for writing custom tools. I wanted something like
+<code>terminal-editor</code> forever, but it was never the most attractive yak to shave. Well, now I have the
+thing, I use it daily.</p>
+<p>LLMs don’t magically solve all software engineering problems. The biggest time sink with
+<code>terminal-editor</code> was solving the <code>pty</code> problem, but LLMs are not yet at the “give me UNIX, but
+without <code>pty</code> mess” stage.</p>
+<p>LLMs don’t solve maintenance. A while ago I wrote about
+<a href="https://matklad.github.io/2024/12/13/majjit-lsp.html"><em>LSP for jj</em></a>. I think I can actually code
+that up in a day with Claude now? Not the proof of concept, the production version with everything
+<em>I</em> would need. But I don’t want to <em>maintain</em> that. I don’t want to context switch to fix a minor
+bug, if I am the only one using the tool. And, well, if I make this for other people, I’d definitely
+be on the hook for maintaining it :D</p>
+</section>
+]]></content></entry><entry
+  ><title type="text">Ads Are a Positional Good</title><link
+      href="https://matklad.github.io/2025/08/30/ads-are-a-positional-good.html"
+      rel="alternate"
+      type="text/html"
+      title="Ads Are a Positional Good"
+    /><published>2025-08-30T00:00:00+00:00</published><updated
+    >2025-08-30T00:00:00+00:00</updated><id
+    >https://matklad.github.io/2025/08/30/ads-are-a-positional-good</id><author
+    ><name>Alex Kladov</name></author><summary
+      type="html"
+    ><![CDATA[Non-technical armchair economics post, where I explain my pet theory for why everything on and outside
+of the internet is absolutely infested with ads.]]></summary><content
+      type="html"
+      xml:base="https://matklad.github.io/2025/08/30/ads-are-a-positional-good.html"
+    ><![CDATA[
+<header>
+  <h1>Ads Are a Positional Good</h1>
+  <time class="meta" datetime="2025-08-30">Aug 30, 2025</time>
+</header>
+<p>Non-technical armchair economics post, where I explain my pet theory for why everything on and outside
+of the internet is absolutely infested with ads.</p>
+<p>The traditional explanation is that any paid service will lose out to a “free” service funded by
+advertising. I think there’s some truth to it! Another explanation is transaction overhead. You
+basically can’t pay 1 cent for something, as just the annoyance of using the debit card is greater
+than the value. Contrast with the ease of dismissing a cookie consent banner! I think this is also
+important, but, at best, a part of the story.</p>
+<p>The simple fact is that even paying for things doesn’t rid you of those pesky attention vampires!
+When I go to the cinema, I buy the ticket, but still have to sit through ten minutes of
+advertisement. Similarly, I pay for subscription to economist.com, and I still see a lot of ads if
+I disable my ad-blocker.</p>
+<p>I think there’s a more fundamental force in play here, which is, you guessed it: ads are a
+positional good. Let me unpack!</p>
+<p><dfn>Positional Good</dfn> is a term from economics. To explain it, let’s start with a normal good,
+like bread. You want bread because you derive value from it, you avoid starvation. So you are
+willing to buy it, and the price you are willing to pay is proportional to the value you personally
+derive from it. In general, you want to pay only so much for bread, because your hunger is finite.</p>
+<p>In contrast, the value of a positional good is indirect. It is how much <em>less</em> of the good the
+others have. What matters is not the absolute amount of good you have, but your relative position
+among other actors. A standard (though somewhat muddled) example is a University degree. There’s
+certain intrinsic value in having a degree from a more prestigious University, even if we keep the
+actual level of knowledge attained fixed. “Better” degree positions you higher relative to other job
+applicants. So prospective students compete for a limited number of seats not so much with the
+underlying hard granite of science, but rather with each other, and only the brightest go to the best
+University (which creates a feedback loop, but this is the <em>other</em> mechanism, not covered by the
+article).</p>
+<p>I think it is the same for ads! If you are in a supermarket and want to buy a soft drink, your
+decision (simplifying, of course!) is based on how much craving you have and how much do you value
+your craving in euros. If you are particularly thirsty, you might even buy a larger bottle, but
+unlikely more than one.</p>
+<p>Now imagine that you are a soft drink company, and you are considering an ad slot before a movie.
+How much should you pay? Well, it’s easy — just a little bit more than your rival company! Your
+ads aren’t going to meaningfully affect the amount of thirst people have, but they certainly can
+nudge the decision of <em>which</em> soft drink to buy. And, given that the other company is locked into
+the same logic, you are going to spend basically as much as you can afford.</p>
+<p>And that is my mental model. While advertising creates some value directly, by informing customers
+of their options, I <em>think</em> that the bulk of ads is pure competitive value destruction, which
+redirects surplus value created by productive economic activity to companies hosting advertisement
+battlegrounds, with human attention being merely a collateral damage.</p>
+]]></content></entry><entry
+  ><title type="text">Retry Loop Retry</title><link
+      href="https://matklad.github.io/2025/08/23/retry-loop-retry.html"
+      rel="alternate"
+      type="text/html"
+      title="Retry Loop Retry"
+    /><published>2025-08-23T00:00:00+00:00</published><updated
+    >2025-08-23T00:00:00+00:00</updated><id
+    >https://matklad.github.io/2025/08/23/retry-loop-retry</id><author><name
+      >Alex Kladov</name></author><summary
+      type="html"
+    ><![CDATA[Some time ago I lamented that I don't know how to write a retry loop such that:]]></summary><content
+      type="html"
+      xml:base="https://matklad.github.io/2025/08/23/retry-loop-retry.html"
+    ><![CDATA[
+<header>
+  <h1>Retry Loop Retry</h1>
+  <time class="meta" datetime="2025-08-23">Aug 23, 2025</time>
+</header>
+<p>Some time ago I lamented that I don’t know how to write a retry loop such that:</p>
+<ul>
+<li>
+it is syntactically obvious that the amount of retries is bounded,
+</li>
+<li>
+there’s no spurious extra sleep after the last attempt,
+</li>
+<li>
+the original error is reported if retrying fails,
+</li>
+<li>
+there’s no code duplication in the loop.
+</li>
+</ul>
+<p><a href="https://matklad.github.io/2023/12/21/retry-loop.html" class="url">https://matklad.github.io/2023/12/21/retry-loop.html</a></p>
+<p>To recap, we have</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">fn</span><span class="hl-function"> action</span>() E<span class="hl-operator">!</span>T { ... }</span>
+<span class="line"><span class="hl-keyword">fn</span><span class="hl-function"> is_transient_error</span>(err: E) <span class="hl-type">bool</span> { ... }</span></code></pre>
+
+</figure>
+<p>and we need to write</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">fn</span><span class="hl-function"> action_with_retries</span>(retry_count: <span class="hl-type">u32</span>) E<span class="hl-operator">!</span>T { ... }</span></code></pre>
+
+</figure>
+<p>I’ve received many suggestions, and the best one was from
+<span class="display"><a href="https://www.joachimschipper.nl" class="url">https://www.joachimschipper.nl</a>,</span>
+though it was somewhat specific to Python:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">for</span> tries_left <span class="hl-keyword">in</span> reverse(<span class="hl-built_in">range</span>(retry_count)):</span>
+<span class="line">    <span class="hl-keyword">try</span>:</span>
+<span class="line">        <span class="hl-keyword">return</span> action()</span>
+<span class="line">    <span class="hl-keyword">except</span> Exception <span class="hl-keyword">as</span> e:</span>
+<span class="line">        <span class="hl-keyword">if</span> tries_left == <span class="hl-number">0</span> <span class="hl-keyword">or</span> <span class="hl-keyword">not</span> is_transient_error(e):</span>
+<span class="line">            <span class="hl-keyword">raise</span></span>
+<span class="line">        sleep()</span>
+<span class="line"><span class="hl-keyword">else</span>:</span>
+<span class="line">    <span class="hl-keyword">assert</span> <span class="hl-literal">False</span></span></code></pre>
+
+</figure>
+<p>A couple of days ago I learned to think better about the problem. You see, the first requirement,
+that the number of retries is bounded syntactically, was leading me down the wrong path. If we
+<em>start</em> with that requirement, we get code shape like:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">const</span> result: E<span class="hl-operator">!</span>T = <span class="hl-keyword">for</span> (<span class="hl-numbers">0</span>..retry_count) {</span>
+<span class="line">    <span class="hl-comment">// ???</span></span>
+<span class="line">    action()</span>
+<span class="line">    <span class="hl-comment">// ???</span></span>
+<span class="line">}</span></code></pre>
+
+</figure>
+<p>The salient point here is that, no matter what we do, we need to get <code>E</code> or <code>T</code> out as a result, so
+we’ll have to call <code>action()</code> at least once. But <code>retry_count</code> <em>could</em> be zero. Looking at the
+static semantics, any non <code>do while</code> loop’s body can be skipped completely, so we’ll have to have
+some runtime asserts explaining to the compiler that we really did run <code>action</code> at least once. The
+part of the loop which is guaranteed to be executed at least once is a condition. So it’s more
+fruitful to flip this around: it’s not that we are looping until we are out of attempts, but,
+rather, we are looping while the underlying action returns an error, and then retries are an extra
+condition to exit the loop early:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">var</span> retries_left = retry_count;</span>
+<span class="line"><span class="hl-keyword">const</span> result = <span class="hl-keyword">try</span> <span class="hl-keyword">while</span>(<span class="hl-literal">true</span>) {</span>
+<span class="line">    <span class="hl-keyword">const</span> err = <span class="hl-keyword">if</span> (action()) <span class="hl-operator">|</span>ok<span class="hl-operator">|</span> <span class="hl-keyword">break</span> ok <span class="hl-keyword">else</span> <span class="hl-operator">|</span>err<span class="hl-operator">|</span> err;</span>
+<span class="line">    <span class="hl-keyword">if</span> (<span class="hl-operator">!</span>is_transient_error(err)) <span class="hl-keyword">break</span> err;</span>
+<span class="line"></span>
+<span class="line">    <span class="hl-keyword">if</span> (retries_left <span class="hl-operator">==</span> <span class="hl-numbers">0</span>) <span class="hl-keyword">break</span> err;</span>
+<span class="line">    retries_left <span class="hl-operator">-=</span> <span class="hl-numbers">1</span>;</span>
+<span class="line">    sleep();</span>
+<span class="line">};</span></code></pre>
+
+</figure>
+<p>This shape of the loop also works if the condition for retries is not attempts based, but, say, time
+based. Sadly, this throws “loop is obviously bounded” requirement out of the window. But it can be
+restored by adding <em>upper bound</em> to the infinite loop:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">var</span> retries_left = retry_count;</span>
+<span class="line"><span class="hl-keyword">const</span> result = <span class="hl-keyword">try</span> <span class="hl-keyword">for</span>(<span class="hl-numbers">0</span>..retry_count <span class="hl-operator">+</span> <span class="hl-numbers">1</span>) {</span>
+<span class="line">    <span class="hl-keyword">const</span> err = <span class="hl-keyword">if</span> (action()) <span class="hl-operator">|</span>ok<span class="hl-operator">|</span> <span class="hl-keyword">break</span> ok <span class="hl-keyword">else</span> <span class="hl-operator">|</span>err<span class="hl-operator">|</span> err;</span>
+<span class="line">    <span class="hl-keyword">if</span> (<span class="hl-operator">!</span>is_transient_error(err)) <span class="hl-keyword">break</span> err;</span>
+<span class="line"></span>
+<span class="line">    <span class="hl-keyword">if</span> (retries_left <span class="hl-operator">==</span> <span class="hl-numbers">0</span>) <span class="hl-keyword">break</span> err;</span>
+<span class="line">    retries_left <span class="hl-operator">-=</span> <span class="hl-numbers">1</span>;</span>
+<span class="line">    sleep();</span>
+<span class="line">} <span class="hl-keyword">else</span> <span class="hl-built_in">@panic</span>(<span class="hl-string">&quot;runaway loop&quot;</span>);</span></code></pre>
+
+</figure>
+<p>I still don’t like it (if you forget that <code>+1</code>, you’ll get a panic!), but that’s where I am at!</p>
+]]></content></entry><entry
+  ><title type="text">Links</title><link
+      href="https://matklad.github.io/2025/08/23/links.html"
+      rel="alternate"
+      type="text/html"
+      title="Links"
+    /><published>2025-08-23T00:00:00+00:00</published><updated
+    >2025-08-23T00:00:00+00:00</updated><id
+    >https://matklad.github.io/2025/08/23/links</id><author><name
+      >Alex Kladov</name></author><summary
+      type="html"
+    ><![CDATA[If you have a blog, consider adding a links page to it, which references resources that you find
+notable:
+https://matklad.github.io/links.html]]></summary><content
+      type="html"
+      xml:base="https://matklad.github.io/2025/08/23/links.html"
+    ><![CDATA[
+<header>
+  <h1>Links</h1>
+  <time class="meta" datetime="2025-08-23">Aug 23, 2025</time>
+</header>
+<p>If you have a blog, consider adding a “links” page to it, which references resources that you find
+notable:
+<a href="https://matklad.github.io/links.html" class="display url">https://matklad.github.io/links.html</a></p>
+<p>I’ve started my links page several years ago, mostly because I found myself referring to the same
+few links repeatedly in various discussions, and not all the links were easily searchable.</p>
+<p>Note that the suggestion is different from more typical “monthly links roundup”, which is nice to
+maintain Substack engagement/community, but doesn’t contribute to long-term knowledge distilling.</p>
+<p>It is also different from the exhaustive list of everything I’ve read on the Internet. It is
+relatively short, considering its age.</p>
+]]></content></entry><entry
+  ><title type="text">Reserve First</title><link
+      href="https://matklad.github.io/2025/08/16/reserve-first.html"
+      rel="alternate"
+      type="text/html"
+      title="Reserve First"
+    /><published>2025-08-16T00:00:00+00:00</published><updated
+    >2025-08-16T00:00:00+00:00</updated><id
+    >https://matklad.github.io/2025/08/16/reserve-first</id><author><name
+      >Alex Kladov</name></author><summary
+      type="html"
+    ><![CDATA[A short post about a coding pattern that is relevant for people who use the heap liberally and
+manage memory with their own hands.]]></summary><content
+      type="html"
+      xml:base="https://matklad.github.io/2025/08/16/reserve-first.html"
+    ><![CDATA[
+<header>
+  <h1>Reserve First</h1>
+  <time class="meta" datetime="2025-08-16">Aug 16, 2025</time>
+</header>
+<p>A short post about a coding pattern that is relevant for people who use the heap liberally and
+manage memory with their own hands.</p>
+<p>Let’s start with two bugs. The first one is from Andrew Kelley’s HYTRADBOI 2025 talk,
+<a href="https://www.hytradboi.com/2025/05c72e39-c07e-41bc-ac40-85e8308f2917-programming-without-pointers">“Programming Without Pointers”</a>:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">pub</span> <span class="hl-keyword">fn</span><span class="hl-function"> internString</span>(</span>
+<span class="line">    state: <span class="hl-operator">*</span>State,</span>
+<span class="line">    gpa: Allocator,</span>
+<span class="line">    bytes: []<span class="hl-keyword">const</span> <span class="hl-type">u8</span>,</span>
+<span class="line">) <span class="hl-operator">!</span>String {</span>
+<span class="line">    <span class="hl-keyword">const</span> gop = <span class="hl-keyword">try</span> state.string_table.getOrPutContextAdapted(</span>
+<span class="line">        gpa,</span>
+<span class="line">        <span class="hl-built_in">@as</span>([]<span class="hl-keyword">const</span> <span class="hl-type">u8</span>, bytes),</span>
+<span class="line">        <span class="hl-built_in">@as</span>(String.TableIndexAdapter, .{</span>
+<span class="line">            .bytes = state.string_bytes.items,</span>
+<span class="line">         }),</span>
+<span class="line">        <span class="hl-built_in">@as</span>(String.TableContext, .{</span>
+<span class="line">            .bytes = state.string_bytes.items,</span>
+<span class="line">         }),</span>
+<span class="line">    );</span>
+<span class="line">    <span class="hl-keyword">if</span> (gop.found_existing) <span class="hl-keyword">return</span> gop.key_ptr.<span class="hl-operator">*</span>;</span>
+<span class="line"></span>
+<span class="line">    <span class="hl-keyword">try</span> state.string_bytes.ensureUnusedCapacity(gpa, bytes.len <span class="hl-operator">+</span> <span class="hl-numbers">1</span>);</span>
+<span class="line">    <span class="hl-keyword">const</span> new_off: String =</span>
+<span class="line">        <span class="hl-built_in">@enumFromInt</span>(state.string_bytes.items.len);</span>
+<span class="line"></span>
+<span class="line">    state.string_bytes.appendSliceAssumeCapacity(bytes);</span>
+<span class="line">    state.string_bytes.appendAssumeCapacity(<span class="hl-numbers">0</span>);</span>
+<span class="line"></span>
+<span class="line">    gop.key_ptr.<span class="hl-operator">*</span> = new_off;</span>
+<span class="line"></span>
+<span class="line">    <span class="hl-keyword">return</span> new_off;</span>
+<span class="line">}</span></code></pre>
+
+</figure>
+<p>The second one is from the
+<a href="https://github.com/ghostty-org/ghostty/tree/0930b2daff95c3550282b567c90d4c370fcd329b">Ghostty</a>
+terminal emulator:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-comment">// Grow the texture to the new size,</span></span>
+<span class="line"><span class="hl-comment">// preserving all previously written data.</span></span>
+<span class="line"><span class="hl-keyword">pub</span> <span class="hl-keyword">fn</span><span class="hl-function"> grow</span>(</span>
+<span class="line">    self: <span class="hl-operator">*</span>Atlas,</span>
+<span class="line">    alloc: Allocator,</span>
+<span class="line">    size_new: <span class="hl-type">u32</span>,</span>
+<span class="line">) Allocator.Error<span class="hl-operator">!</span><span class="hl-type">void</span> {</span>
+<span class="line">    assert(size_new &gt;= self.size);</span>
+<span class="line">    <span class="hl-keyword">if</span> (size_new <span class="hl-operator">==</span> self.size) <span class="hl-keyword">return</span>;</span>
+<span class="line"></span>
+<span class="line">    <span class="hl-comment">// Preserve our old values so we can copy the old data</span></span>
+<span class="line">    <span class="hl-keyword">const</span> data_old = self.data;</span>
+<span class="line">    <span class="hl-keyword">const</span> size_old = self.size;</span>
+<span class="line"></span>
+<span class="line">    <span class="hl-comment">// Allocate our new data</span></span>
+<span class="line">    self.data =</span>
+<span class="line">        <span class="hl-keyword">try</span> alloc.alloc(<span class="hl-type">u8</span>, size_new <span class="hl-operator">*</span> size_new <span class="hl-operator">*</span> self.format.depth());</span>
+<span class="line">    <span class="hl-keyword">defer</span> alloc.free(data_old);</span>
+<span class="line">    <span class="hl-keyword">errdefer</span> {</span>
+<span class="line">        alloc.free(self.data);</span>
+<span class="line">        self.data = data_old;</span>
+<span class="line">    }</span>
+<span class="line"></span>
+<span class="line">    <span class="hl-comment">// Add our new rectangle for our added righthand space. We do this</span></span>
+<span class="line">    <span class="hl-comment">// right away since its the only operation that can fail and we</span></span>
+<span class="line">    <span class="hl-comment">// want to make error cleanup easier.</span></span>
+<span class="line">    <span class="hl-keyword">try</span> self.nodes.append(alloc, .{</span>
+<span class="line">        .x = size_old <span class="hl-operator">-</span> <span class="hl-numbers">1</span>,</span>
+<span class="line">        .y = <span class="hl-numbers">1</span>,</span>
+<span class="line">        .width = size_new <span class="hl-operator">-</span> size_old,</span>
+<span class="line">    });</span>
+<span class="line"></span>
+<span class="line">    <span class="hl-comment">// If our allocation and rectangle add succeeded, we can go ahead</span></span>
+<span class="line">    <span class="hl-comment">// and persist our new size and copy over the old data.</span></span>
+<span class="line">    self.size = size_new;</span>
+<span class="line">    <span class="hl-built_in">@memset</span>(self.data, <span class="hl-numbers">0</span>);</span>
+<span class="line">    self.set(.{</span>
+<span class="line">        .x = <span class="hl-numbers">0</span>, <span class="hl-comment">// don&#x27;t bother skipping border so we can avoid strides</span></span>
+<span class="line">        .y = <span class="hl-numbers">1</span>, <span class="hl-comment">// skip the first border row</span></span>
+<span class="line">        .width = size_old,</span>
+<span class="line">        .height = size_old <span class="hl-operator">-</span> <span class="hl-numbers">2</span>, <span class="hl-comment">// skip the last border row</span></span>
+<span class="line">    }, data_old[size_old <span class="hl-operator">*</span> self.format.depth() ..]);</span>
+<span class="line"></span>
+<span class="line">    <span class="hl-comment">// We are both modified and resized</span></span>
+<span class="line">    _ = self.modified.fetchAdd(<span class="hl-numbers">1</span>, .monotonic);</span>
+<span class="line">    _ = self.resized.fetchAdd(<span class="hl-numbers">1</span>, .monotonic);</span>
+<span class="line">}</span></code></pre>
+
+</figure>
+<p>Can you spot the two bugs? In lieu of a spoiler, allow me to waste your bandwidth with a  Dante
+Gabriel Rossetti painting:</p>
+
+<figure>
+
+<img alt="The Day Dream" src="https://upload.wikimedia.org/wikipedia/commons/b/b1/Dante_Gabriel_Rossetti_-_The_Day_Dream_-_Google_Art_Project.jpg">
+</figure>
+<p>In both functions, a bug happens when the second <code>try</code> expression throws.</p>
+<p>In the <code>internString</code> case, we insert an item into a hash table, but leave it uninitialized.
+Accessing the item later will crash in the best case.</p>
+<p>The Ghostty example is even more interesting. It actually tries to avoid this exact problem, by
+attempting to carefully revert changes in the <code>errdefer</code> block. But it fails to do so properly!
+While the data is restored to <code>data_old</code> on error, the <code>defer</code> still frees <code>data_old</code>, so we end up
+with uninitialized memory all the same:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line">self.data =</span>
+<span class="line">    <span class="hl-keyword">try</span> alloc.alloc(<span class="hl-type">u8</span>, size_new <span class="hl-operator">*</span> size_new <span class="hl-operator">*</span> self.format.depth());</span>
+<span class="line"><span class="hl-keyword">defer</span> alloc.free(data_old); <span class="hl-comment">// Oups.</span></span>
+<span class="line"><span class="hl-keyword">errdefer</span> {</span>
+<span class="line">    alloc.free(self.data);</span>
+<span class="line">    self.data = data_old;</span>
+<span class="line">}</span></code></pre>
+
+</figure>
+<p>Both are “exception safety” problems: if we attempt an operation that mutates an object, and an
+error happens midway, there are three possible outcomes:</p>
+<dl>
+<dt>Strong Exception Safety</dt>
+<dd>
+<p>The object state remains as if we didn’t attempt the operation.</p>
+</dd>
+<dt>Basic Exception Safety</dt>
+<dd>
+<p>The object is left in a different, but valid state.</p>
+</dd>
+<dt>No Exception Safety</dt>
+<dd>
+<p>The object becomes invalid and unsafe to use.</p>
+</dd>
+</dl>
+<p>In these two cases in particular, the only source of errors is fallible allocation. And there’s
+a pattern to fix it:</p>
+<ul>
+<li>
+First, <em>reserve</em> enough memory for operation, without applying any changes to the data structure,
+</li>
+<li>
+Then, mutate the data structure in an error-free code path.
+</li>
+</ul>
+<p><a href="https://matklad.github.io/2024/03/21/defer-patterns.html">As a reminder</a>,
+<span class="display"><code>errdefer comptime unreachable;</code></span>
+is a Zig idiom for expressing “no errors after this point”.</p>
+<p>Applying the pattern to two examples we get:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">pub</span> <span class="hl-keyword">fn</span><span class="hl-function"> internString</span>(</span>
+<span class="line">    state: <span class="hl-operator">*</span>State,</span>
+<span class="line">    gpa: Allocator,</span>
+<span class="line">    bytes: []<span class="hl-keyword">const</span> <span class="hl-type">u8</span>,</span>
+<span class="line">) <span class="hl-operator">!</span>String {</span>
+<span class="line">    <span class="hl-keyword">try</span> state.string_table.ensureUnusedCapacityContext(</span>
+<span class="line">        gpa,</span>
+<span class="line">        <span class="hl-numbers">1</span>,</span>
+<span class="line">        <span class="hl-built_in">@as</span>(String.TableContext, .{</span>
+<span class="line">        .bytes = state.string_bytes.items,</span>
+<span class="line">        }),</span>
+<span class="line">    );</span>
+<span class="line">    <span class="hl-keyword">try</span> state.string_bytes.ensureUnusedCapacity(gpa, bytes.len <span class="hl-operator">+</span> <span class="hl-numbers">1</span>);</span>
+<span class="line">    <span class="hl-keyword">errdefer</span> <span class="hl-keyword">comptime</span> <span class="hl-keyword">unreachable</span>; <span class="hl-comment">// End reservation phase.</span></span>
+<span class="line"></span>
+<span class="line">    <span class="hl-keyword">const</span> gop = state.string_table.getOrPutAssumeCapacityAdapted(</span>
+<span class="line">        <span class="hl-built_in">@as</span>([]<span class="hl-keyword">const</span> <span class="hl-type">u8</span>, bytes),</span>
+<span class="line">        <span class="hl-built_in">@as</span>(String.TableIndexAdapter, .{</span>
+<span class="line">            .bytes = state.string_bytes.items,</span>
+<span class="line">        }),</span>
+<span class="line">    );</span>
+<span class="line">    <span class="hl-keyword">if</span> (gop.found_existing) <span class="hl-keyword">return</span> gop.key_ptr.<span class="hl-operator">*</span>;</span>
+<span class="line"></span>
+<span class="line">    <span class="hl-comment">//...</span></span>
+<span class="line">}</span></code></pre>
+
+</figure>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">pub</span> <span class="hl-keyword">fn</span><span class="hl-function"> grow</span>(</span>
+<span class="line">    self: <span class="hl-operator">*</span>Atlas,</span>
+<span class="line">    alloc: Allocator,</span>
+<span class="line">    size_new: <span class="hl-type">u32</span>,</span>
+<span class="line">) Allocator.Error<span class="hl-operator">!</span><span class="hl-type">void</span> {</span>
+<span class="line">    assert(size_new &gt;= self.size);</span>
+<span class="line">    <span class="hl-keyword">if</span> (size_new <span class="hl-operator">==</span> self.size) <span class="hl-keyword">return</span>;</span>
+<span class="line"></span>
+<span class="line">    <span class="hl-keyword">try</span> self.nodes.ensureUnusedCapacity(alloc, <span class="hl-numbers">1</span>);</span>
+<span class="line">    <span class="hl-keyword">const</span> data_new =</span>
+<span class="line">        <span class="hl-keyword">try</span> alloc.alloc(<span class="hl-type">u8</span>, size_new <span class="hl-operator">*</span> size_new <span class="hl-operator">*</span> self.format.depth());</span>
+<span class="line">    <span class="hl-keyword">errdefer</span> <span class="hl-keyword">comptime</span> <span class="hl-keyword">unreachable</span>; <span class="hl-comment">// End reservation phase.</span></span>
+<span class="line"></span>
+<span class="line">    <span class="hl-comment">// Preserve our old values so we can copy the old data</span></span>
+<span class="line">    <span class="hl-keyword">const</span> data_old = self.data;</span>
+<span class="line">    <span class="hl-keyword">const</span> size_old = self.size;</span>
+<span class="line"></span>
+<span class="line">    self.data = data_new;</span>
+<span class="line">    <span class="hl-keyword">defer</span> alloc.free(data_old);</span>
+<span class="line"></span>
+<span class="line">    self.nodes.appendAssumeCapacity(.{</span>
+<span class="line">        .x = size_old <span class="hl-operator">-</span> <span class="hl-numbers">1</span>,</span>
+<span class="line">        .y = <span class="hl-numbers">1</span>,</span>
+<span class="line">        .width = size_new <span class="hl-operator">-</span> size_old,</span>
+<span class="line">    });</span>
+<span class="line"></span>
+<span class="line">    <span class="hl-comment">// ...</span></span></code></pre>
+
+</figure>
+<p>Memory reservation is a magic trick, <code>ensureUnusedCapacity</code> contains all the failures, but doesn’t
+change the data structure! Do you see how powerful that is? I learned this pattern from Andrew
+Kelley during the coffee break after the talk!</p>
+<section id="Spicy-Takes">
+
+<h2><a href="#Spicy-Takes">Spicy Takes</a></h2>
+<p>I haven’t measured the optimal level of spice here to make the truest possible  statement. Instead I
+opted for dumping as much spice as possible to get the brain gears grinding:</p>
+<p>Zig should remove <code>append</code> and rename <code>appendAssumeCapacity</code> to just <code>append</code>. If you want to insert
+a single item, that’s two lines now. Don’t insert items one-by-one, reserve memory in bulk,
+up-front.</p>
+<p>Zig applications should consider aborting on OOM. While the design goal of handling OOM errors
+correctly is laudable, and Zig makes it possible, I’ve seen only one application,
+<a href="https://github.com/radarroark/xit">xit</a> which passes “matklad spends 30 minutes grepping for
+<code>errdefer</code>” test. For libraries, prefer leaving allocation to the caller, or use generative testing
+with an allocator that actually returns errors.</p>
+<p>Alternatively, do as TigerBeetle. We take this pattern literally, reserve <em>all</em> resources in main,
+and never allocate memory afterwards:</p>
+<p><a href="https://github.com/tigerbeetle/tigerbeetle/blob/0.16.54/docs/internals/ARCHITECTURE.md#static-memory-allocation" class="display">ARCHITECTURE.md#static-memory-allocation</a></p>
+</section>
+]]></content></entry><entry
+  ><title type="text">Zig&#039;s Lovely Syntax</title><link
+      href="https://matklad.github.io/2025/08/09/zigs-lovely-syntax.html"
+      rel="alternate"
+      type="text/html"
+      title="Zig&#039;s Lovely Syntax"
+    /><published>2025-08-09T00:00:00+00:00</published><updated
+    >2025-08-09T00:00:00+00:00</updated><id
+    >https://matklad.github.io/2025/08/09/zigs-lovely-syntax</id><author><name
+      >Alex Kladov</name></author><summary
+      type="html"
+    ><![CDATA[It's a bit of a silly post, because syntax is the least interesting detail about the language, but,
+still, I can't stop thinking how Zig gets this detail just right for the class of curly-braced
+languages, and, well, now you'll have to think about that too.]]></summary><content
+      type="html"
+      xml:base="https://matklad.github.io/2025/08/09/zigs-lovely-syntax.html"
+    ><![CDATA[
+<header>
+  <h1>Zig’s Lovely Syntax</h1>
+  <time class="meta" datetime="2025-08-09">Aug 9, 2025</time>
+</header>
+<p>It’s a bit of a silly post, because syntax is the least interesting detail about the language, but,
+still, I can’t stop thinking how Zig gets this detail just right for the class of curly-braced
+languages, and, well, now you’ll have to think about that too.</p>
+<p>On the first glance, Zig looks almost exactly like Rust, because Zig borrows from Rust liberally.
+And I think that Rust has great syntax, considering all the semantics it needs to express (see
+<a href="https://matklad.github.io/2023/01/26/rusts-ugly-syntax.html">“Rust’s Ugly Syntax”</a>). But Zig
+improves on that, mostly by leveraging simpler language semantics, but also through some purely
+syntactical tasteful decisions.</p>
+<section id="Integer-Literals">
+
+<h2><a href="#Integer-Literals">Integer Literals</a></h2>
+<p>How do you spell a number ninety-two? Easy, <code>92</code>. But what type is that? Statically-typed languages
+often come with several flavors of integers: <code>u32</code>, <code>u64</code>, <code>u8</code>. And there’s often a syntax for
+literals of a particular types: <code>92u8</code>, <code>92l</code>, <code>92z</code>.</p>
+<p>Zig doesn’t have suffixes, because, in Zig, all integer literals have the same type: <code>comptime_int</code>:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">const</span> an_integer = <span class="hl-numbers">92</span>;</span>
+<span class="line">assert(<span class="hl-built_in">@TypeOf</span>(an_integer) <span class="hl-operator">==</span> <span class="hl-type">comptime_int</span>);</span></code></pre>
+
+</figure>
+<p>The value of an integer literal is known at compile time and is coerced to a specific type on
+assignment
+<span class="display"><code>const x: i32 = 92;</code></span>
+or ascription:
+<span class="display"><code>@as(i32, 92)</code></span></p>
+<p>To emphasize, this is <em>not</em> type inference, this is implicit comptime coercion. This does mean that
+code like
+<span class="display"><code>var x = 92;</code></span>
+generally doesn’t work, and requires an explicit type.</p>
+</section>
+<section id="String-Literals">
+
+<h2><a href="#String-Literals">String Literals</a></h2>
+<p>Raw or multiline strings are spelled like this:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">const</span> raw =</span>
+<span class="line">    <span class="hl-string">\\Roses are red</span></span>
+<span class="line">    <span class="hl-string">\\  Violets are blue,</span></span>
+<span class="line">    <span class="hl-string">\\Sugar is sweet</span></span>
+<span class="line">    <span class="hl-string">\\  And so are you.</span></span>
+<span class="line">    <span class="hl-string">\\</span></span>
+<span class="line">;</span></code></pre>
+
+</figure>
+<p>This syntax doesn’t require a special form for escaping <code>\\</code> itself:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">const</span> still_raw =</span>
+<span class="line">    <span class="hl-string">\\const raw =</span></span>
+<span class="line">    <span class="hl-string">\\    <span class="hl-string">\\</span>Roses are red</span></span>
+<span class="line">    <span class="hl-string">\\    <span class="hl-string">\\</span>  Violets are blue,</span></span>
+<span class="line">    <span class="hl-string">\\    <span class="hl-string">\\</span>Sugar is sweet</span></span>
+<span class="line">    <span class="hl-string">\\    <span class="hl-string">\\</span>  And so are you.</span></span>
+<span class="line">    <span class="hl-string">\\    <span class="hl-string">\\</span></span></span>
+<span class="line">    <span class="hl-string">\\;</span></span>
+<span class="line">    <span class="hl-string">\\</span></span>
+<span class="line">;</span></code></pre>
+
+</figure>
+<p>It nicely dodges indentation problems that plague every other language with a similar feature. And,
+the best thing ever: lexically, each line is a separate token. As Zig has only line-comments, this
+means that <code>\n</code> is <em>always</em> whitespace. Unlike most other languages, Zig can be correctly lexed in a
+line-by-line manner.</p>
+<p>Raw strings is perhaps the biggest improvement of Zig over Rust. Rust brute-forces the problem with
+<code>r##""##</code> syntax, which does the required job, technically, but suffers from the mentioned
+problems: indentation is messy, nesting quotes requires adjusting hashes, unclosed raw literal
+breaks the following lexical structure completely, and rustfmt’s formatting of raw strings tends to
+be rather ugly. On the plus side, this syntax at least cannot be expressed by a context-free grammar!</p>
+</section>
+<section id="Record-Literals">
+
+<h2><a href="#Record-Literals">Record Literals</a></h2>
+<p>For the record, Zig takes C syntax (not that C would notice):</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">const</span> p: Point = .{</span>
+<span class="line">    .x = <span class="hl-numbers">1</span>,</span>
+<span class="line">    .y = <span class="hl-numbers">2</span>,</span>
+<span class="line">}</span></code></pre>
+
+</figure>
+<p>The <code>.{</code> feels weird! It will make sense by the end of the post. Here, I want only to note <code>.x = 1</code>
+part, which matches the assignment syntax <code>obj.x = 1</code>. This is great! This means that grepping for
+<code>".x ="</code> gives you <em>all</em> instances where a field is written to. This is hugely valuable: most of
+usages are reads, but, to understand the flow of data, you only need to consider writes. Ability to
+mechanically partition the entire set of usages into majority of boring reads and a few interesting
+writes does wonders for code comprehension.</p>
+</section>
+<section id="Prefix-Types">
+
+<h2><a href="#Prefix-Types">Prefix Types</a></h2>
+<p>Where Zig departs from C the most is the syntax for types. C uses a needlessly confusing spiral
+rule. In Zig, all types are prefix:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-type">u32</span>      <span class="hl-comment">// An integer</span></span>
+<span class="line">[<span class="hl-numbers">3</span>]<span class="hl-type">u32</span>   <span class="hl-comment">// An array of three integers</span></span>
+<span class="line">?[<span class="hl-numbers">3</span>]<span class="hl-type">u32</span>  <span class="hl-comment">// An array of three integers or null</span></span>
+<span class="line"></span>
+<span class="line"><span class="hl-comment">// A pointer to...</span></span>
+<span class="line"><span class="hl-operator">*</span><span class="hl-keyword">const</span> ?[<span class="hl-numbers">3</span>]<span class="hl-type">u32</span></span></code></pre>
+
+</figure>
+<p>While pointer type is prefix, pointer dereference is postfix, which is a more natural subject-verb
+order to read: <span class="display"><code>ptr.* = 92;</code></span></p>
+</section>
+<section id="Identifiers">
+
+<h2><a href="#Identifiers">Identifiers</a></h2>
+<p>Zig has general syntax for “raw” identifiers:
+<span class="display"><code>@"a name which a space"</code></span>
+It is useful to avoid collisions with keywords, or for exporting a symbol whose name is otherwise
+not a valid Zig identifier. It is a bit more to type than Kotlin’s delightful
+<span class="display"><code>`a name with a space`</code>,</span> but
+manages to re-use Zig’s syntax for built-ins (<code>@TypeOf</code>) and strings.</p>
+</section>
+<section id="Functions">
+
+<h2><a href="#Functions">Functions</a></h2>
+<p>Like, Rust, Zig goes for <code>fn foo</code> function declaration syntax. This is such a massive improvement
+over C/Java style function declarations: it puts <code>fn</code> token (which is completely absent in
+traditional C family) and function name next to each other, which means that textual search for <code>fn
+name</code> allows you to quickly find the function. Then Zig adds a little twist. While in Rust we write</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">fn</span> <span class="hl-title function_">add</span>(x: <span class="hl-type">i32</span>, <span class="hl-type">i32</span>) <span class="hl-punctuation">-&gt;</span> <span class="hl-type">i32</span></span></code></pre>
+
+</figure>
+<p>Zig is</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">fn</span><span class="hl-function"> add</span>(x: <span class="hl-type">i32</span>, <span class="hl-type">i32</span>) <span class="hl-type">i32</span></span></code></pre>
+
+</figure>
+<p>The arrow is gone! Now that I’ve used this for some time, I find arrow very annoying to type, and
+adding to the visual noise. Rust needs the arrow: Rust has lambdas with an inferred return type,
+and, in a lambda, the return type is optional. So you need some sort of an explicit syntax to tell
+the parser if there is return type:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line">|| expression;</span>
+<span class="line">|| <span class="hl-punctuation">-&gt;</span> Type { }</span></code></pre>
+
+</figure>
+<p>And it’s understandable that lambdas and functions would want to use compatible syntax. But Zig
+doesn’t have lambdas, so it just makes the type mandatory. So the main is</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">pub</span> <span class="hl-keyword">fn</span><span class="hl-function"> main</span>() <span class="hl-type">void</span> {}</span></code></pre>
+
+</figure>
+<p>Related small thing, but, as name of the type, I think I like <code>void</code> more than <code>()</code>.</p>
+</section>
+<section id="Locals">
+
+<h2><a href="#Locals">Locals</a></h2>
+<p>Zig is using <code>const</code> and <code>var</code> for binding values to names:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">const</span> mid = lo <span class="hl-operator">+</span> <span class="hl-built_in">@divFloor</span>(hi <span class="hl-operator">-</span> lo, <span class="hl-numbers">2</span>);</span></code></pre>
+
+</figure>
+<p>This is ok, a bit weird after Rust’s, whose <code>const</code> would be <code>comptime</code> in Zig, but not really
+noticeable after some months. I do think this particular part is not great, because <code>const</code>, the
+more frequent one, is longer. I think Kotlin nails it: <code>val</code>, <code>var</code>, <code>fun</code>. Note all three are
+monosyllable, unlike <code>const</code> and <code>fn</code>! Number of syllables matters more than the number of letters!</p>
+<p>Like Rust, Zig uses</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-string">&#x27;name&#x27;</span> (<span class="hl-string">&#x27;:&#x27;</span> Type)?</span></code></pre>
+
+</figure>
+<p>syntax for ascribing types, which is better than</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line">Type <span class="hl-string">&#x27;name&#x27;</span></span></code></pre>
+
+</figure>
+<p>because optional suffixes are easier to parse visually and mechanically than optional prefixes.</p>
+</section>
+<section id="Conjunction-Is-Control-Flow">
+
+<h2><a href="#Conjunction-Is-Control-Flow">Conjunction Is Control Flow</a></h2>
+<p>Zig doesn’t use <code>&amp;&amp;</code> and <code>||</code> and spells the relevant operators as <code>and</code> and <code>or</code>:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">while</span> (count &gt; <span class="hl-numbers">0</span> <span class="hl-keyword">and</span> ascii.isWhitespace(buffer[count <span class="hl-operator">-</span> <span class="hl-numbers">1</span>])) {</span></code></pre>
+
+</figure>
+<p>This is easier to type and much easier to read, but there’s also a deeper reason why they are not
+sigils. Zig marks any control flow with a keyword. And, because boolean operators short-circuit,
+they <em>are</em> control flow! Treating them as normal binary operator leads to an entirely incorrect
+mental model. For bitwise operations, Zig of course uses <code>&amp;</code> and <code>|</code>.</p>
+</section>
+<section id="Explicit-return">
+
+<h2><a href="#Explicit-return">Explicit return</a></h2>
+<p>Both Zig and Rust have statements and expressions. Zig is a bit more statement oriented, and
+requires explicit returns:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">fn</span><span class="hl-function"> add</span>(x: <span class="hl-type">i32</span>, y: <span class="hl-type">i32</span>) <span class="hl-type">i32</span> {</span>
+<span class="line">  <span class="hl-keyword">return</span> x <span class="hl-operator">+</span> y;</span>
+<span class="line">}</span></code></pre>
+
+</figure>
+<p>Furthermore, because there are no lambdas, scope of return is always clear.</p>
+<p>Relatedly, the value of a block expression is void. A block is a list of statements, and doesn’t have
+an optional expression at the end. This removes the semicolon problem — while Rust rules around
+semicolons are sufficiently clear (until you get to macros), there’s some constant mental overhead
+to getting them right all the time. Zig is more uniform and mechanical here.</p>
+<p>If you need a block that yields a value, Zig supports a general syntax for breaking out of a labeled
+block:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line hl-line"><span class="hl-keyword">const</span> header_oldest = blk: {</span>
+<span class="line">    <span class="hl-keyword">var</span> oldest: ?<span class="hl-type">usize</span> = <span class="hl-literal">null</span>;</span>
+<span class="line">    <span class="hl-keyword">for</span> (headers.slice, <span class="hl-numbers">0</span>..) <span class="hl-operator">|</span><span class="hl-operator">*</span>header, i<span class="hl-operator">|</span> {</span>
+<span class="line">        <span class="hl-keyword">switch</span> (Headers.dvc_header_type(header)) {</span>
+<span class="line">            .blank =&gt; assert(i &gt; <span class="hl-numbers">0</span>),</span>
+<span class="line">            .valid =&gt; oldest = i,</span>
+<span class="line">        }</span>
+<span class="line">    }</span>
+<span class="line hl-line">    <span class="hl-keyword">break</span> :blk <span class="hl-operator">&amp;</span>headers.slice[oldest.?];</span>
+<span class="line">};</span></code></pre>
+
+</figure>
+</section>
+<section id="If">
+
+<h2><a href="#If">If</a></h2>
+<p>Rust makes pedantically correct choice regarding <code>if</code>s: braces are mandatory:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">if</span> cond1 {</span>
+<span class="line">  case_a</span>
+<span class="line">} <span class="hl-keyword">else</span> {</span>
+<span class="line">  <span class="hl-keyword">if</span> cond2 {</span>
+<span class="line">    case_b</span>
+<span class="line">  } <span class="hl-keyword">else</span> {</span>
+<span class="line">    case_c</span>
+<span class="line">  }</span>
+<span class="line">}</span></code></pre>
+
+</figure>
+<p>This removes the dreaded “dangling else” grammatical ambiguity. While theoretically nice, it makes
+<code>if</code>-expression one-line feel too heavy. It’s not the braces, it’s the whitespace around them:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line">if (a) b else c</span>
+<span class="line">if a { b } else { c }</span></code></pre>
+
+</figure>
+<p>But the ternary is important! Exploding a simple choice into multi-line condition <em>hurts</em>
+readability. Zig goes with the traditional choice of making parentheses required and braces 
+optional:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line">  .direction = <span class="hl-keyword">if</span> (prng.boolean()) .ascending <span class="hl-keyword">else</span> .descending,</span></code></pre>
+
+</figure>
+<p>By itself, this does create a risk of <code>goto: fail;</code> style bugs. But in Zig  formatter
+(non-configurable, user-directed) is a part of the compiler, and formatting errors that can mask
+bugs are caught during compilation. For example, <code>1 -2</code> is an error due to inconsistent whitespace
+around the minus sign, which signals a plausible mixup of infix and binary minus. No such errors are
+currently produced for incorrect indentation (the value add there is relatively little, given <code>zig
+fmt</code>), but this is planned.</p>
+<p>NB: because Rust requires <code>if</code> branches to be blocks, it is forced to make <code>{ expr }</code> synonym with
+<code>(expr)</code>. Otherwise, the ternary <code>if</code> would be even more unusable! Syntax design is tricky! Whether
+you need <code>return</code>s and whether you make <code>()</code> or <code>{}</code> mandatory in ifs are not orthogonal!</p>
+</section>
+<section id="Loops">
+
+<h2><a href="#Loops">Loops</a></h2>
+<p>Like Python, Zig allows <code>else</code> on loops. Unlike Python, loops are expressions, which leads to a
+nicely readable imperative searches:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">pub</span> <span class="hl-keyword">const</span> Word = <span class="hl-keyword">for</span> (.{ <span class="hl-type">u8</span>, <span class="hl-type">u16</span>, <span class="hl-type">u32</span>, <span class="hl-type">u64</span>, <span class="hl-type">u128</span>, <span class="hl-type">u256</span> }) <span class="hl-operator">|</span>W<span class="hl-operator">|</span> {</span>
+<span class="line">    <span class="hl-keyword">if</span> (<span class="hl-built_in">@bitSizeOf</span>(W) &gt;= bitset_capacity) <span class="hl-keyword">break</span> W;</span>
+<span class="line">} <span class="hl-keyword">else</span> <span class="hl-keyword">unreachable</span>;</span></code></pre>
+
+</figure>
+<p>Zig doesn’t have syntactically-infinite loop like Rust’s <code>loop {</code> or Go’s <code>for {</code>. Normally I’d
+consider that a drawback, because these loops produce different control flow, affecting reachability
+analysis in the compiler, and I don’t think it’s great to make reachability dependent on condition
+being visibly constant. But! As Zig places <code>comptime</code> semantics front and center, and the rules for
+what is and isn’t a comptime constant are a backbone of every feature, “anything equivalent to
+<code>while (true)</code>” becomes sufficiently precise. Incidentally, these days I tend to write “infinite”
+loops as</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">for</span> (<span class="hl-numbers">0</span>..safety_bound) <span class="hl-operator">|</span>_<span class="hl-operator">|</span> {</span>
+<span class="line"></span>
+<span class="line">} <span class="hl-keyword">else</span> <span class="hl-built_in">@panic</span>(<span class="hl-string">&quot;loop safety counter exceeded&quot;</span>);</span></code></pre>
+
+</figure>
+<p>Almost always there is an up-front bound for the number of iterations until the break, and its worth
+asserting this bound, because debugging crashes is easier than debugging hangs.</p>
+<p><code>for</code>, <code>while</code>, <code>if</code>, <code>switch</code>, and <code>catch</code> all use the same Ruby/Rust inspired syntax for naming
+captured values:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">for</span> (slice) <span class="hl-operator">|</span>element<span class="hl-operator">|</span> {</span>
+<span class="line">  use(element);</span>
+<span class="line">}</span>
+<span class="line"></span>
+<span class="line"><span class="hl-keyword">while</span> (iterator.next()) <span class="hl-operator">|</span>element<span class="hl-operator">|</span> {</span>
+<span class="line">  use(element);</span>
+<span class="line">}</span></code></pre>
+
+</figure>
+<p>I like how the iterator comes first, and then the name of an item follows, logically and
+syntactically.</p>
+</section>
+<section id="Clarity-of-Names">
+
+<h2><a href="#Clarity-of-Names">Clarity of Names</a></h2>
+<p>I have a very strong opinion about variable shadowing. It goes both ways: I spent hours debugging
+code which incorrectly tried to use a variable that was shadowed by something else, but I also spent
+hours debugging code that accidentally used a variable that should have been shadowed! I really
+don’t know whether on balance it is better to forbid or encourage shadowing!</p>
+<p>Zig of course forbids shadowing, but what’s curious is that it’s just one episode of the large
+crusade against any complexity in name resolution. There’s no “prelude”, if you want to use anything
+from std, you need to import it:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">const</span> std = <span class="hl-built_in">@import</span>(<span class="hl-string">&quot;std&quot;</span>);</span></code></pre>
+
+</figure>
+<p>There are no glob imports, if you want to use an item from std, you need to import it:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">const</span> ArrayList = std.ArrayList;</span></code></pre>
+
+</figure>
+<p>Zig doesn’t have inheritance, mixins, argument-dependent lookup, extension functions, implicit or
+traits, so, if you see <code>x.foo()</code>, that <code>foo</code> is guaranteed to be a boring method declared on <code>x</code>
+type. Similarly, while Zig has powerful comptime capabilities, it
+<a href="https://matklad.github.io/2025/04/19/things-zig-comptime-wont-do.html">intentionally disallows</a>
+declaring methods at compile time.</p>
+<p>Like Rust, Zig used to allow a method and a field to share a name, because it actually is
+syntactically clear enough at the call site which is which. But then this feature got removed from
+Zig.</p>
+<p>More generally, Zig doesn’t have namespaces. There can be only one kind of <code>foo</code> in scope, while
+Rust allows things like</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">struct</span> <span class="hl-title class_">Point</span> { x: <span class="hl-type">i32</span>, y: <span class="hl-type">i32</span> }</span>
+<span class="line"><span class="hl-keyword">fn</span> <span class="hl-title function_">Point</span>(x: <span class="hl-type">i32</span>, y: <span class="hl-type">i32</span>) <span class="hl-punctuation">-&gt;</span> Point { Point { x, y } }</span></code></pre>
+
+</figure>
+<p>I am astonished at the relative lack of inconvenience in Zig’s approach. Turns out that <code>foo.bar.baz</code>
+is all the syntax you’ll ever need for accessing things? For the historically inclined, see
+“The module naming situation” thread in the
+<a href="https://github.com/brson/rust-dev-archives">rust mailing list archive</a>
+to learn the story of how rust got its <code>std::vec</code> syntax.</p>
+</section>
+<section id="Everything-Is-an-Expression">
+
+<h2><a href="#Everything-Is-an-Expression">Everything Is an Expression</a></h2>
+<p>The lack of namespaces touches on the most notable (by its absence) feature of Zig syntax, which
+deeply relates to the most profound aspect of Zig’s semantics. Everything is an expression. By which
+I mean, there’s no separate syntactic categories of values, types, and patterns. Values, types, and
+patterns are of course different things. And usually in the language grammar it is <em>syntactically</em>
+obvious whether a particular text fragment refers to a type or a value:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">let</span> <span class="hl-variable">PATTERN</span>: TYPE = VALUE;</span></code></pre>
+
+</figure>
+<p>So the standard way is to have separate syntax families for the three categories, which need to be
+internally unambiguous, but <em>can</em> be ambiguous across the categories because the place in the
+grammar dictates the category: when parsing <code>let</code>, everything until <code>:</code> is a pattern, stuff between
+<code>:</code> and <code>=</code> is a type, and after <code>=</code> we have a value.</p>
+<p>There are two problems here. First, there’s a combinatorial explosion of sorts in the syntax,
+because, while three categories describe different things, it turns out that they have the same
+general tree-ish shape.</p>
+<p>The second problem is that it might be hard to maintain category separation in the grammar. Rust
+<em>started</em> with the three categories separated by a bright line. But then, changes happen.
+Originally, Rust only allowed
+<span class="display"><code>VALUE = VALUE;</code></span>
+syntax for assignment. But today you can also write
+<span class="display"><code>PATTERN = VALUE;</code></span>
+to do unpacking like
+<span class="display"><code>(a, b) = (b, a);</code></span></p>
+<p>Similarly, the turbofish used to move the parser from the value to the type mode, but now const
+parameters are values that can be found in the type position!</p>
+<p>The alternative is not to pick this fight at all. Rather than trying to keep the categories
+separately in the syntax, use the same surface syntax to express all three, and categorize later,
+during semantic analysis. In fact, this is already happens in the <span class="display"><code>VALUE = VALUE</code></span>
+example — these are different things! One is a place (lvalue) and another is a “true” value
+(rvalue), but we use the same syntax for both.</p>
+<p>I don’t think such syntactic unification necessarily implies semantic unification, but Zig does
+treat everything uniformly, as a value with comptime and runtime behavior (for some values, runtime
+behavior may be missing, for others — comptime):</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">const</span> E = <span class="hl-keyword">enum</span> { a, b };</span>
+<span class="line"></span>
+<span class="line"><span class="hl-keyword">pub</span> <span class="hl-keyword">fn</span><span class="hl-function"> main</span>() <span class="hl-type">void</span> {</span>
+<span class="line">    <span class="hl-keyword">const</span> e: <span class="hl-keyword">if</span> (<span class="hl-literal">true</span>) E <span class="hl-keyword">else</span> <span class="hl-type">void</span> = .a;</span>
+<span class="line">    _ = <span class="hl-keyword">switch</span> (e) {</span>
+<span class="line">        (<span class="hl-keyword">if</span> (<span class="hl-literal">true</span>) .a <span class="hl-keyword">else</span> .b) =&gt; .a,</span>
+<span class="line">        (<span class="hl-keyword">if</span> (<span class="hl-literal">true</span>) .b <span class="hl-keyword">else</span> .a) =&gt; .b,</span>
+<span class="line">    };</span>
+<span class="line">}</span></code></pre>
+
+</figure>
+<p>The fact that you can write an <code>if</code> where a type goes is occasionally useful. But the fact that
+simple types look like simple values syntactically consistently make the language feel significantly
+less busy.</p>
+</section>
+<section id="Generics">
+
+<h2><a href="#Generics">Generics</a></h2>
+<p>As a special case of everything being an expression, instances of generic types look like this:
+<span class="display"><code>ArrayList(u32)</code></span></p>
+<p>Just a function call! Though, there’s some resistance to trickery involved to make this work.
+Usually, languages rely on type inference to allow eliding generic arguments. That in turn requires
+making argument <em>syntax</em> optional, and that in turn leads to separating generic and non-generic
+arguments into separate parameter lists and some introducer sigil for generics, like <code>::&lt;&gt;</code> or
+<code>!()</code>.</p>
+<p>Zig solves this syntactic challenge in the most brute-force way possible. Generic parameters are
+never inferred, if a function takes 3 comptime arguments and 2 runtime arguments, it will always be
+called with 5 arguments syntactically. Like with the (absence of) importing flourishes, a reasonable
+reaction would be “wait, does this mean that I’ll have to specify the types all the time?” And, like
+with import, in practice this is a non-issue. The trick are comptime closures. Consider a generic
+<code>ArrayList</code>:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">fn</span><span class="hl-function"> ArrayListType</span>(<span class="hl-keyword">comptime</span> T: <span class="hl-type">type</span>) <span class="hl-type">type</span> {</span>
+<span class="line">    <span class="hl-keyword">return</span> <span class="hl-keyword">struct</span> {</span>
+<span class="line">        <span class="hl-keyword">const</span> ArrayList = <span class="hl-built_in">@This</span>();</span>
+<span class="line"></span>
+<span class="line">        <span class="hl-keyword">fn</span><span class="hl-function"> init</span>(gpa: Allocator) ArrayList {}</span>
+<span class="line">        <span class="hl-keyword">fn</span><span class="hl-function"> deinit</span>(list: <span class="hl-operator">*</span>ArrayList, gpa: Allocator) <span class="hl-type">void</span> {}</span>
+<span class="line">        <span class="hl-keyword">fn</span><span class="hl-function"> push</span>(list: <span class="hl-operator">*</span>ArrayList, item: T) <span class="hl-operator">!</span><span class="hl-type">void</span> {}</span>
+<span class="line">    };</span>
+<span class="line">}</span>
+<span class="line"></span>
+<span class="line"><span class="hl-keyword">fn</span><span class="hl-function"> usage</span>(gpa: Allocator) <span class="hl-operator">!</span><span class="hl-type">void</span> {</span>
+<span class="line hl-line">    <span class="hl-keyword">var</span> xs: ArrayListType(<span class="hl-type">u32</span>) = .init(gpa);</span>
+<span class="line">    <span class="hl-keyword">defer</span> xs.deinit(gpa);</span>
+<span class="line"></span>
+<span class="line hl-line">    <span class="hl-keyword">try</span> xs.push(<span class="hl-numbers">92</span>);</span>
+<span class="line">}</span></code></pre>
+
+</figure>
+<p>We have to specify type <code>T</code> when creating an instance of an <code>ArrayList</code>. But subsequently, when we
+are <em>using</em> the array list, we don’t have to specify the type parameter again, because the type of
+<code>xs</code> variable already closes over <code>T</code>. This is the major truth of object-orienting programming, the
+truth so profound that no one even notices it: in real code, 90% of functions are happiest as
+(non-virtual) methods. And, because of that, the annotation burden in real-world Zig programs is
+low.</p>
+</section>
+<section id="Declaration-Literals">
+
+<h2><a href="#Declaration-Literals">Declaration Literals</a></h2>
+<p>While Zig doesn’t have Hindley-Milner constraint-based type inference, it relies heavily on one
+specific way to propagate types. Let’s revisit the first <code>comptime_int</code> example:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">const</span> x = <span class="hl-keyword">if</span> (condition()) <span class="hl-numbers">1</span> <span class="hl-keyword">else</span> <span class="hl-numbers">2</span>;</span></code></pre>
+
+</figure>
+<p>This doesn’t compile: <code>1</code> and <code>2</code> are different <code>comptime</code> values, we can’t select between two at
+runtime because they are different. We need to coerce the constants to a specific runtime type:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">const</span> x: <span class="hl-type">u32</span> = <span class="hl-keyword">if</span> (condition()) <span class="hl-numbers">1</span> <span class="hl-keyword">else</span> <span class="hl-numbers">2</span>;</span>
+<span class="line"></span>
+<span class="line"><span class="hl-keyword">const</span> x = <span class="hl-built_in">@coerceTo</span>(</span>
+<span class="line">  <span class="hl-type">u32</span>,</span>
+<span class="line">  <span class="hl-keyword">if</span> (condition()) <span class="hl-numbers">1</span> <span class="hl-keyword">else</span> <span class="hl-numbers">2</span>,</span>
+<span class="line">);</span></code></pre>
+
+</figure>
+<p>But this doesn’t kick the can sufficiently far enough and essentially reproduces the <code>if</code> with two
+incompatible branches. We need to sink coercion down the branches:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">const</span> x = <span class="hl-keyword">if</span> (condition())</span>
+<span class="line">    <span class="hl-built_in">@coerceTo</span>(<span class="hl-type">u32</span>, <span class="hl-numbers">1</span>)</span>
+<span class="line"><span class="hl-keyword">else</span></span>
+<span class="line">    <span class="hl-built_in">@coerceTo</span>(<span class="hl-type">u32</span>, <span class="hl-numbers">2</span>);</span></code></pre>
+
+</figure>
+<p>And that’s exactly how Zig’s “Result Location Semantics” works. Type “inference” runs a simple
+left-to-right tree-walking algorithm, which resembles interpreter’s <code>eval</code>. In fact, <code>eval</code> is
+<em>exactly</em> what happens. Zig is not a compiler, it is an interpreter. When <code>zig</code> evaluates an
+expression, it gets:</p>
+<ul>
+<li>
+expression’s type (as a Zig value),
+</li>
+<li>
+expression’s value (if it can be evaluated at comptime),
+</li>
+<li>
+code to compute expression’s value otherwise.
+</li>
+</ul>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line">eval(&quot;1 + 2&quot;) =</span>
+<span class="line">  3</span>
+<span class="line"></span>
+<span class="line">eval(&quot;f() + g()&quot;) =</span>
+<span class="line">  $1 = call &#039;f&#039;</span>
+<span class="line">  $2 = call &#039;g&#039;</span>
+<span class="line">  $3 = add $1, $2</span>
+<span class="line"></span>
+<span class="line">eval(&quot;f() + 2&quot;) =</span>
+<span class="line">  $1 = call &#039;f&#039;</span>
+<span class="line">  $2 = add $1,  imm 2</span></code></pre>
+
+</figure>
+<p>When interpreting code like</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line">obj.field = if (condition()) 1 else 2;</span></code></pre>
+
+</figure>
+<p>the interpreter passes the result location (<code>obj.field</code>) and type down the tree of subexpressions.
+If branches store result directly into object field (there’s a <code>store</code> inside each branch, as
+opposed to one <code>store</code> after the <code>if</code>), and each coerces its comptime constant to the appropriate
+runtime type of the result.</p>
+<p>This mechanism enables concise <code>.variant</code> syntax for specifying enums:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">const</span> E = <span class="hl-keyword">enum</span> { a, b };</span>
+<span class="line"></span>
+<span class="line"><span class="hl-keyword">fn</span><span class="hl-function"> example</span>(e: E) <span class="hl-type">u32</span> {</span>
+<span class="line">    <span class="hl-keyword">return</span> <span class="hl-keyword">switch</span> (e) {</span>
+<span class="line">        .a =&gt; <span class="hl-numbers">1</span>,</span>
+<span class="line">        (<span class="hl-keyword">if</span> (<span class="hl-literal">true</span>) .b <span class="hl-keyword">else</span> .a) =&gt; <span class="hl-numbers">2</span>,</span>
+<span class="line">    };</span>
+<span class="line">}</span></code></pre>
+
+</figure>
+<p>When <code>zig</code> evaluates the switch, it first evaluates the scrutinee, and realizes that it has type
+<code>E</code>. When evaluating <code>switch</code> arm, it sets result type to <code>E</code> for the condition, and a literal <code>.a</code>
+gets coerced to <code>E</code>. The same happens for the second arm, where result type further sinks down the
+<code>if</code>.</p>
+<p>Result type semantics also explains the leading dot in the record literal syntax:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">const</span> p: Point = .{</span>
+<span class="line">    .x = <span class="hl-numbers">1</span>,</span>
+<span class="line">    .y = <span class="hl-numbers">2</span>,</span>
+<span class="line">};</span></code></pre>
+
+</figure>
+<p>Syntactically, we just want to disambiguate records from blocks. But, semantically, we want to
+coerce the literal to whatever type we want to get out of this expression. In Zig, <code>.whatever</code> is a
+shorthand for <code>@ResultType().whatever</code>.</p>
+<p>I must confess that <code>.{}</code> did weird me out a lot at first during <em>writing</em> code (I don’t mind
+reading the dot). It’s not the easiest thing to type! But that was fixed once I added <code>..</code> snippet,
+expanding to <code>.{$0}</code>.</p>
+<p>The benefits to lightweight record literal syntax are huge, as they allow for some pretty nice
+APIs. In particular, you get named and default arguments for free:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">fn</span><span class="hl-function"> exec</span>(argv: []<span class="hl-keyword">const</span> []<span class="hl-keyword">const</span> <span class="hl-type">u8</span>, options: <span class="hl-keyword">struct</span> {</span>
+<span class="line">    working_directory: ?[]<span class="hl-keyword">const</span> <span class="hl-type">u8</span> = <span class="hl-literal">null</span></span>
+<span class="line">}) <span class="hl-operator">!</span><span class="hl-type">void</span> {</span>
+<span class="line">    <span class="hl-comment">// ...</span></span>
+<span class="line">}</span>
+<span class="line"></span>
+<span class="line"><span class="hl-keyword">fn</span><span class="hl-function"> usage</span>() <span class="hl-operator">!</span><span class="hl-type">void</span> {</span>
+<span class="line">    <span class="hl-keyword">try</span> exec(<span class="hl-operator">&amp;</span>.{ <span class="hl-string">&quot;git&quot;</span>, <span class="hl-string">&quot;status&quot;</span>}, .{});</span>
+<span class="line"></span>
+<span class="line">    <span class="hl-keyword">try</span> exec(<span class="hl-operator">&amp;</span>.{ <span class="hl-string">&quot;git&quot;</span>, <span class="hl-string">&quot;status&quot;</span>}, .{</span>
+<span class="line">        .working_directory = <span class="hl-string">&quot;./src&quot;</span>,</span>
+<span class="line">    });</span>
+<span class="line">}</span></code></pre>
+
+</figure>
+<p>I don’t really miss the absence of named arguments in Rust, you can always design APIs without them.
+But they are free in Zig, so I use them liberally. Syntax wise, we get two features (calling
+functions and initializing objects) for the price of one!</p>
+</section>
+<section id="Built-ins">
+
+<h2><a href="#Built-ins">Built-ins</a></h2>
+<p>Finally, the thing that weirds out some people when they see Zig code, and makes others reconsider
+their choice GitHub handles, even when they haven’t seen any Zig: <code>@divExact</code> syntax for
+built-in functions.</p>
+<p>Every language needs to glue “userspace” code with primitive operations supported by the compiler.
+Usually, the gluing is achieved by making the standard library privileged and allowing it to define
+intrinsic functions without bodies, or by adding ad-hoc operators directly to the language (like
+Rust’s <code>as</code>). And Zig does have a fair amount of operators, like <code>+</code> or <code>orelse</code>. But the release
+valve for a lot of functionality are built-in functions in distinct syntactic namespace, so Zig
+separates out <code>@bitCast</code>, <code>@addrSpaceCast</code>, <code>@alignCast</code>, <code>@constCast</code>, <code>@ptrCast</code>, <code>@intCast</code>,
+<code>@floatCast</code>, <code>@volatileCast</code>, <code>@ptrFromInt</code>, and <code>@intFromPtr</code>. There’s no need to overload casting
+when you can give each variant a name.</p>
+<p>There’s also <span class="display"><code>@as(i32, 92)</code></span> for type ascription. The types goes first, because the
+mechanism here is result type semantics: <code>@as</code> evaluates the first argument as a type, and then uses
+that as the type for the second argument. Curiously, <code>@as</code> I think actually can be implemented in
+the userspace:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">fn</span><span class="hl-function"> as</span>(<span class="hl-keyword">comptime</span> T: <span class="hl-type">type</span>, value: T) T {</span>
+<span class="line">    <span class="hl-keyword">return</span> value;</span>
+<span class="line">}</span></code></pre>
+
+</figure>
+<p>In Zig, a type of function parameter may depend on values of preceding (comptime) ones!</p>
+<p>My favorite builtin is <code>@import()</code>. First, it’s the most obvious way to import code:
+<span class="display"><code>const foo = @import("./foo.zig")</code></span>
+Its crystal clear where the file comes from.</p>
+<p>But, second, it is an instance of reverse syntax sugar. You see, import isn’t really a function.
+You can’t do</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">const</span> name = <span class="hl-string">&quot;./foo.zig&quot;</span>;</span>
+<span class="line"><span class="hl-keyword">const</span> foo = <span class="hl-built_in">@import</span>(name);</span></code></pre>
+
+</figure>
+<p>The argument of <code>@import</code> has to be a string, syntactically. It really is
+<span class="display"><code>import "./path.zig"</code></span>
+syntax, except that the function-call form is re-used, because it already has the right shape.</p>
+<hr>
+<p>So, this is it. Just a bunch of silly syntactical decisions, which add up to a language which is
+positively enjoyable to read. As for big lessons, obviously, the less features your language has,
+the less syntax you’ll need. And less syntax is generally good, because varied syntactic constructs
+tend to step on each other toes. Languages are not combinations of orthogonal aspects. Features tug
+and pull the language in different directions and their combinations might turn to be miraculous
+features in their own right, or might drag the language down.</p>
+<p>Even with a small feature-set fixed, there’s still a lot of work to pick a good concrete syntax:
+unambiguous to parse, useful to grep, easy to read and not to painful to write. A smart thing is of
+course to steal and borrow solutions from other languages, not because of familiarity, but because
+the ruthless natural selection tends to weed out poor ideas. But there’s a lot of inertia in
+languages, so there’s no need to fear innovation. If an odd-looking syntax is actually good, people
+will take to it.</p>
+<p>Is there anything about Zig’s syntax I don’t like? I thought no, when starting this post. But in the
+process of writing it I did discover one form that annoys me. It is the while with the increment
+loop:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">var</span> i: <span class="hl-type">u32</span> = <span class="hl-numbers">0</span>;</span>
+<span class="line"><span class="hl-keyword">while</span> (i &lt; <span class="hl-numbers">10</span>) : (i<span class="hl-operator">+=</span><span class="hl-numbers">1</span>) {</span>
+<span class="line">    print(<span class="hl-string">&quot;{d}&quot;</span>, .{i});</span>
+<span class="line">}</span></code></pre>
+
+</figure>
+<p>This is two-thirds of a C-style <code>for</code> loop (without the declarator), and it sucks for the same
+reason: control flow jumps all over the place and is unrelated to the source code order. We go from
+condition, to the body, to the increment. But in the source order the increment is between the
+condition and the body. In Zig, this loop sucks for one additional reason: that <code>:</code> separating the
+increment I think is the single example of control flow in Zig that is expressed by a sigil, rather
+than a keyword.</p>
+<p>This form used to be rather important, as Zig lacked a counting loop. It has
+<span class="display"><code>for(0..10) |i|</code></span>
+form now, so I am tempted to call the while-with-increment redundant.</p>
+<p>Annoyingly,</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">while</span> (condition) {</span>
+<span class="line">    <span class="hl-keyword">defer</span> increment;</span>
+<span class="line"></span>
+<span class="line">    body</span>
+<span class="line">}</span></code></pre>
+
+</figure>
+<p>is <em>almost</em> equivalent to</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">while</span> (condition) : (increment) {</span>
+<span class="line">  body</span>
+<span class="line">}</span></code></pre>
+
+</figure>
+<p>But not exactly: if <code>body</code> contains a <code>return</code>, <code>break</code> or <code>try</code>, the <code>defer</code> version would run the
+<code>increment</code> one extra time, which is useless and might be outright buggy. Oh well.</p>
+</section>
+]]></content></entry><entry
+  ><title type="text">Partially Matching Zig Enums</title><link
+      href="https://matklad.github.io/2025/08/08/partially-matching-zig-enums.html"
+      rel="alternate"
+      type="text/html"
+      title="Partially Matching Zig Enums"
+    /><published>2025-08-08T00:00:00+00:00</published><updated
+    >2025-08-08T00:00:00+00:00</updated><id
+    >https://matklad.github.io/2025/08/08/partially-matching-zig-enums</id><author
+    ><name>Alex Kladov</name></author><summary
+      type="html"
+    ><![CDATA[A short post about a neat little Zig idiom. Consider your average {sum type, variant, tagged union,
+enum, alt}:]]></summary><content
+      type="html"
+      xml:base="https://matklad.github.io/2025/08/08/partially-matching-zig-enums.html"
+    ><![CDATA[
+<header>
+  <h1>Partially Matching Zig Enums</h1>
+  <time class="meta" datetime="2025-08-08">Aug 8, 2025</time>
+</header>
+<p>A short post about a neat little Zig idiom. Consider your average {sum type, variant, tagged union,
+enum, alt}:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">enum</span> <span class="hl-title class_">U</span> {</span>
+<span class="line">    <span class="hl-title function_ invoke__">A</span>(<span class="hl-type">i32</span>),</span>
+<span class="line">    <span class="hl-title function_ invoke__">B</span>(<span class="hl-type">i32</span>),</span>
+<span class="line">    C,</span>
+<span class="line">}</span></code></pre>
+
+</figure>
+<p>Usually, you handle it like this:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">match</span> u {</span>
+<span class="line">    U::<span class="hl-title function_ invoke__">A</span>(_) =&gt; <span class="hl-title function_ invoke__">handle_a</span>(),</span>
+<span class="line">    U::<span class="hl-title function_ invoke__">B</span>(_) =&gt; <span class="hl-title function_ invoke__">handle_b</span>(),</span>
+<span class="line">    U::C =&gt; <span class="hl-title function_ invoke__">handle_c</span>(),</span>
+<span class="line">}</span></code></pre>
+
+</figure>
+<p>But once in a while, there’s common handling code you want to run for several variants. The
+most straightforward way is to duplicate:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">match</span> u {</span>
+<span class="line">    U::<span class="hl-title function_ invoke__">A</span>(_) =&gt; {</span>
+<span class="line">        <span class="hl-title function_ invoke__">handle_ab</span>();</span>
+<span class="line">        <span class="hl-title function_ invoke__">handle_a</span>();</span>
+<span class="line">    }</span>
+<span class="line">    U::<span class="hl-title function_ invoke__">B</span>(_) =&gt; {</span>
+<span class="line">        <span class="hl-title function_ invoke__">handle_ab</span>();</span>
+<span class="line">        <span class="hl-title function_ invoke__">handle_b</span>();</span>
+<span class="line">    }</span>
+<span class="line">    U::C =&gt; <span class="hl-title function_ invoke__">handle_c</span>(),</span>
+<span class="line">}</span></code></pre>
+
+</figure>
+<p>But this gets awkward if common parts are not easily extractable into function. The “proper” way to
+do this is to refactor the enum:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">enum</span> <span class="hl-title class_">U</span> {</span>
+<span class="line">    <span class="hl-title function_ invoke__">AB</span>(AB),</span>
+<span class="line">    C</span>
+<span class="line">}</span>
+<span class="line"></span>
+<span class="line"><span class="hl-keyword">enum</span> <span class="hl-title class_">AB</span> {</span>
+<span class="line">    <span class="hl-title function_ invoke__">A</span>(<span class="hl-type">i32</span>),</span>
+<span class="line">    <span class="hl-title function_ invoke__">B</span>(<span class="hl-type">i32</span>),</span>
+<span class="line">}</span></code></pre>
+
+</figure>
+<p>This gets <em>very</em> awkward if there’s one hundred usages of <code>U</code>, 95 of them look better with flat
+structure, one needs common code for ab case, and the four remaining need common code for ac.</p>
+<p>The universal recipe for solving the AB problem relies on a runtime panic:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">match</span> u {</span>
+<span class="line">    U::<span class="hl-title function_ invoke__">A</span>(_) | U::<span class="hl-title function_ invoke__">B</span>(_) =&gt; {</span>
+<span class="line">        <span class="hl-title function_ invoke__">handle_ab</span>();</span>
+<span class="line">        <span class="hl-keyword">match</span> u {</span>
+<span class="line">            U::<span class="hl-title function_ invoke__">A</span>(_) =&gt; <span class="hl-title function_ invoke__">handle_a</span>(),</span>
+<span class="line">            U::<span class="hl-title function_ invoke__">B</span>(_) =&gt; <span class="hl-title function_ invoke__">handle_b</span>(),</span>
+<span class="line">            _ =&gt; <span class="hl-built_in">unreachable!</span>(),</span>
+<span class="line">        }</span>
+<span class="line">    }</span>
+<span class="line">    U::C =&gt; <span class="hl-title function_ invoke__">handle_c</span>(),</span>
+<span class="line">}</span></code></pre>
+
+</figure>
+<p>And… this is fine, really! I wrote code of this shape many times, and it never failed at runtime
+due to a misapplied refactor later. Still, every time I write that <code>unreachable</code>, I die inside a
+little. Surely there should be some way to explain to the compiler that <code>c</code> is really unreachable
+there? Well, as I realized an hour ago, in Zig, you can!</p>
+<p>This is the awkward runtime-panicky and theoretically brittle version:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">switch</span> (u) {</span>
+<span class="line">    .a, .b =&gt; <span class="hl-operator">|</span>_, ab<span class="hl-operator">|</span> {</span>
+<span class="line">        handle_ab();</span>
+<span class="line">        <span class="hl-keyword">switch</span> (ab) {</span>
+<span class="line">            .a =&gt; handle_a(),</span>
+<span class="line">            .b =&gt; handle_b(),</span>
+<span class="line">            <span class="hl-keyword">else</span> =&gt; <span class="hl-keyword">unreachable</span>,</span>
+<span class="line">        }</span>
+<span class="line">    },</span>
+<span class="line">    .c =&gt; handle_c(),</span>
+<span class="line">}</span></code></pre>
+
+</figure>
+<p>And here’s a bullet-proof compiler-checked one:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-keyword">const</span> U = <span class="hl-keyword">union</span>(<span class="hl-keyword">enum</span>) {</span>
+<span class="line">    a: <span class="hl-type">i32</span>,</span>
+<span class="line">    b: <span class="hl-type">i32</span>,</span>
+<span class="line">    c,</span>
+<span class="line">};</span>
+<span class="line"></span>
+<span class="line"><span class="hl-keyword">fn</span><span class="hl-function"> handle</span>(u: U) <span class="hl-type">void</span> {</span>
+<span class="line">    <span class="hl-keyword">switch</span> (u) {</span>
+<span class="line hl-line">        <span class="hl-keyword">inline</span> .a, .b =&gt; <span class="hl-operator">|</span>_, ab<span class="hl-operator">|</span> {</span>
+<span class="line">            handle_ab();</span>
+<span class="line">            <span class="hl-keyword">switch</span> (ab) {</span>
+<span class="line">                .a =&gt; handle_a(),</span>
+<span class="line">                .b =&gt; handle_b(),</span>
+<span class="line hl-line">                <span class="hl-keyword">else</span> =&gt; <span class="hl-keyword">comptime</span> <span class="hl-keyword">unreachable</span>,</span>
+<span class="line">            }</span>
+<span class="line">        },</span>
+<span class="line">        .c =&gt; handle_c(),</span>
+<span class="line">    }</span>
+<span class="line">}</span>
+<span class="line"></span>
+<span class="line"><span class="hl-keyword">fn</span><span class="hl-function"> handle_ab</span>() <span class="hl-type">void</span> {}</span>
+<span class="line"><span class="hl-keyword">fn</span><span class="hl-function"> handle_a</span>() <span class="hl-type">void</span> {}</span>
+<span class="line"><span class="hl-keyword">fn</span><span class="hl-function"> handle_b</span>() <span class="hl-type">void</span> {}</span>
+<span class="line"><span class="hl-keyword">fn</span><span class="hl-function"> handle_c</span>() <span class="hl-type">void</span> {}</span>
+<span class="line"></span>
+<span class="line"><span class="hl-keyword">pub</span> <span class="hl-keyword">fn</span><span class="hl-function"> main</span>() <span class="hl-type">void</span> { handle(.c); }</span></code></pre>
+
+</figure>
+<p>There are two tricks here. <code>inline .a, .b</code> forces the compiler to generate the program twice, where <code>ab</code>
+is bound to <em>comptime</em> value. The second trick is <code>comptime unreachable</code>, which instructs the
+compiler to fail if it gets to the else branch. But, because <code>ab</code> is known at comptime, compiler
+knows that <code>else</code> is in fact unreachable, and doesn’t hit the error.</p>
+<p>Adding a bug fails compilation, as intended:</p>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line">    <span class="hl-keyword">switch</span> (u) {</span>
+<span class="line">        <span class="hl-keyword">inline</span> .a, .b, .c =&gt; <span class="hl-operator">|</span>_, ab<span class="hl-operator">|</span> {</span>
+<span class="line">            handle_ab();</span>
+<span class="line">            <span class="hl-keyword">switch</span> (ab) {</span>
+<span class="line">                .a =&gt; handle_a(),</span>
+<span class="line">                .b =&gt; handle_b(),</span>
+<span class="line">                <span class="hl-keyword">else</span> =&gt; <span class="hl-keyword">comptime</span> <span class="hl-keyword">unreachable</span>,</span>
+<span class="line">            }</span>
+<span class="line">        },</span>
+<span class="line">    }</span></code></pre>
+
+</figure>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-title function_">$</span> ./zig/zig build-exe partial-match.zig</span>
+<span class="line"><span class="hl-output">partial-match.zig:14:34: error: reached unreachable code</span></span>
+<span class="line"><span class="hl-output">                else =&gt; comptime unreachable,</span></span>
+<span class="line"><span class="hl-output">                                 ^~~~~~~~~~~</span></span></code></pre>
+
+</figure>
+]]></content></entry><entry
+  ><title type="text">font-size-adjust Is Useful</title><link
+      href="https://matklad.github.io/2025/07/16/font-size-adjust.html"
+      rel="alternate"
+      type="text/html"
+      title="font-size-adjust Is Useful"
+    /><published>2025-07-16T00:00:00+00:00</published><updated
+    >2025-07-16T00:00:00+00:00</updated><id
+    >https://matklad.github.io/2025/07/16/font-size-adjust</id><author><name
+      >Alex Kladov</name></author><summary
+      type="html"
+    ><![CDATA[In this article, I will describe a recent addition to CSS, the font-size-adjust property. I am also
+making a bold claim that everyone in the world misunderstands the usefulness of this property,
+including Google,
+MDN, and
+CSS Specification itself.
+(Just to clarify, no, I am not a web designer and I have no idea what I am talking about).]]></summary><content
+      type="html"
+      xml:base="https://matklad.github.io/2025/07/16/font-size-adjust.html"
+    ><![CDATA[
+<header>
+  <h1>font-size-adjust Is Useful</h1>
+  <time class="meta" datetime="2025-07-16">Jul 16, 2025</time>
+</header>
+<p>In this article, I will describe a recent addition to CSS, the <code>font-size-adjust</code> property. I am also
+making a bold claim that everyone in the world misunderstands the usefulness of this property,
+including <a href="https://web.dev/blog/font-size-adjust">Google</a>,
+<a href="https://developer.mozilla.org/en-US/docs/Web/CSS/font-size-adjust">MDN</a>, and
+<a href="https://drafts.csswg.org/css-fonts-4/#propdef-font-size-adjust">CSS Specification itself</a>.
+(Just to clarify, no, I am not a web designer and I have no idea what I am talking about).</p>
+<p>Let’s start with oversimplified and incorrect explanation of <code>font-size</code>
+(see <a href="https://tonsky.me/blog/font-size/" class="url">https://tonsky.me/blog/font-size/</a> for details). Let’s say you specified <code>font-size: 96px</code>.
+What does that mean? First, draw a square 96 pixels high:</p>
+<figure style="display: flex; justify-content: center; max-width: 55ch;">
+<span style="display: flex; align-items: center; width: 96px; height: 96px; border: 1px solid black; font-size: 96px";> </span>
+</figure>
+<p>Then, draw a letter “m” somewhere inside this box:</p>
+<figure style="display: flex; justify-content: center; max-width: 55ch;">
+<span style="display: flex; align-items: center; width: 96px; height: 96px; border: 1px solid black; font-size: 96px; font-family: 'Open Sans'; font-weight: 300;">m</span>
+</figure>
+<p>This doesn’t make sense? I haven’t told you how large the letter m should be? Tiny? Huge? Well,
+sorry, but that’s really how font size works. It’s a size of the box around the glyph, not the size
+of the glyph. And there isn’t really much consistency between the fonts as to how large the glyph
+itself should be. Here’s a small “x” in the three fonts used on my blog at 48px font size:</p>
+<span style="font-size: 48px; font-size-adjust: none; line-height: 1; display: inline-block; font-family: 'JetBrains Mono'">x</span>
+<span style="font-size: 48px; font-size-adjust: none; line-height: 1; display: inline-block; font-family: 'EB Garamond'">x</span>
+<span style="font-size: 48px; font-size-adjust: none; line-height: 1; display: inline-block; font-family: 'Open Sans'" font-weight: 300>x</span>
+<p>They are quite different! And this is where <code>font-size-adjust</code> comes in. If I specify
+<span class="display"><code>font-size-adjust: ex-height 0.5</code>,</span>
+I ask the browser to scale the font such that the letter “x” is exactly half of the box. This makes
+the fonts comparable:</p>
+<span style="font-size: 48px; font-size-adjust: 0.5; line-height: 1; display: inline-block; font-family: 'JetBrains Mono'">x</span>
+<span style="font-size: 48px; font-size-adjust: 0.5; line-height: 1; display: inline-block; font-family: 'EB Garamond'">x</span>
+<span style="font-size: 48px; font-size-adjust: 0.5; line-height: 1; display: inline-block; font-family: 'Open Sans'" font-weight: 300>x</span>
+<section id="Me-vs-Everyone">
+
+<h2><a href="#Me-vs-Everyone">Me vs. Everyone</a></h2>
+<p>Now, the part where I foolishly disagree with the world! The way this property is described in
+<a href="https://developer.mozilla.org/en-US/docs/Web/CSS/font-size-adjust">MDN</a>
+and elsewhere is as if it only matters for the font fallback. That is, if you have
+<span class="display"><code>font-family: Futura, sans-serif</code>,</span> one potential problem could be that the fallback
+sans-serif font on the user’s machine will have very different size from Futura. So, the page could
+look very differently depending on whether fallback kicks in or not (and fallback can kick in
+<em>temporarily</em>, while the font is being loaded). So, the official guideline is, roughly,</p>
+
+<figure class="blockquote">
+<blockquote><p>When using font fallback, find a value of <code>font-size-adjust</code> that makes no change for the first
+font of the fallback stack.</p>
+</blockquote>
+
+</figure>
+<p>I don’t find this to be a particularly compelling use-case! Make sure to vendor the fonts used,
+specify <code>@font-face</code> inline in a <code>&lt;style&gt;</code> tag inside the <code>&lt;head&gt;</code> to avoid extra round trips, add
+<span class="display"><code>font-display: block;</code></span>
+and FOUC is solved for most people. Otherwise, you might want to stick to <code>system-ui</code> font.</p>
+<p>A use-case for <code>font-size-adjust</code> I find <em>much</em> more compelling is that you probably are going to
+use several fonts on a web-page. And you also might <em>change</em> fonts in the future. And they will have
+different intrinsic size because that’s how the things are. Part of the mess is avoidable by pinning
+the meaning of font size. So, the guideline I’d use is:</p>
+
+<figure class="blockquote">
+<blockquote><p>Stick <span class="display"><code>font-size-adjust: ex-height 0.53;</code></span>
+into your CSS reset, right next to <code>box-sizing: border-box</code>.</p>
+</blockquote>
+
+</figure>
+<p>Why <code>0.53</code>? That’s the invariant ratio for Helvetica, but any number in that vicinity should work!</p>
+</section>
+<section id="Bonus-Content:-Line-Height">
+
+<h2><a href="#Bonus-Content:-Line-Height">Bonus Content: Line Height</a></h2>
+<p>While <code>font-size-adjust</code> fixes the size of the glyph relative to em-square, it doesn’t fix
+<em>position</em> of the glyph. This can create line height problems. Consider these two paragraphs that
+are styled with <code>line-height: 24px</code>, but where the second paragraph is using monospace font for
+<code>coreutils</code>:</p>
+<style>
+.bonus-content p { margin-bottom: 24px; }
+.bonus-content p, .bonus-content code {
+    font-size: 16px;
+    line-height: 24px;
+}
+.bonus-content {
+    background-image: repeating-linear-gradient(
+        transparent 0 23px,
+        #ba3925 23px 24px
+    );
+}
+.vertically-aligned * { vertical-align: bottom; }
+</style>
+<div class="bonus-content">
+<p>You are supposed to use coreutils to solve this problem.<br>
+You are supposed to use coreutils to solve this problem.<br>
+You are supposed to use coreutils to solve this problem.<br>
+You are supposed to use coreutils to solve this problem.<br>
+</p>
+<p>You are supposed to use <code>coreutils</code> to solve this problem.<br>
+You are supposed to use <code>coreutils</code> to solve this problem.<br>
+You are supposed to use <code>coreutils</code> to solve this problem.<br>
+You are supposed to use <code>coreutils</code> to solve this problem.<br>
+</p>
+</div>
+
+<figure class="code-block">
+
+
+<pre><code><span class="line"><span class="hl-selector-class">.bonus-content</span> <span class="hl-selector-tag">p</span> { <span class="hl-attribute">margin-bottom</span>: <span class="hl-number">24px</span>; }</span>
+<span class="line"><span class="hl-selector-class">.bonus-content</span> <span class="hl-selector-tag">p</span>, <span class="hl-selector-class">.bonus-content</span> <span class="hl-selector-tag">code</span> {</span>
+<span class="line">    <span class="hl-attribute">font-size</span>: <span class="hl-number">16px</span>;</span>
+<span class="line">    <span class="hl-attribute">line-height</span>: <span class="hl-number">24px</span>;</span>
+<span class="line">}</span>
+<span class="line"><span class="hl-selector-class">.bonus-content</span> {</span>
+<span class="line">    <span class="hl-attribute">background-image</span>: <span class="hl-built_in">repeating-linear-gradient</span>(</span>
+<span class="line">        transparent <span class="hl-number">0</span> <span class="hl-number">23px</span>,</span>
+<span class="line">        <span class="hl-number">#ba3925</span> <span class="hl-number">23px</span> <span class="hl-number">24px</span></span>
+<span class="line">    );</span>
+<span class="line">}</span></code></pre>
+
+</figure>
+<p>In the first paragraph, each line is indeed 24 pixels high, but in the second paragraph each line is
+slightly larger, despite the line-height being set to 24px explicitly. How can this be? The full
+answer is in:</p>
+<p><a href="https://iamvdo.me/en/blog/css-font-metrics-line-height-and-vertical-align" class="url">https://iamvdo.me/en/blog/css-font-metrics-line-height-and-vertical-align</a></p>
+<p>The TL;DR is that <code>line-height</code> doesn’t actually set the the height of the line (who would have
+thought!). Instead, it sets the height of each individual span of the text on the line. So, both
+“supposed” and “<code>coreutils</code>” have a 24 pixels high box around them. But because relative position of
+glyphs inside the em-box is different between the two fonts, the boxes are shifted relative to each
+other to align the baselines. You can see that by adding <code>vertical-align: bottom</code>:</p>
+<p class="bonus-content vertically-aligned">You are supposed to use <code>coreutils</code> to solve this problem.<br>
+You are supposed to use <code>coreutils</code> to solve this problem.<br>
+You are supposed to use <code>coreutils</code> to solve this problem.<br>
+You are supposed to use <code>coreutils</code> to solve this problem.</p>
+<p>If we align the boxes, than baselines are not aligned. It follows that when we align the baselines,
+the boxes are misaligned, and the line-height ends up larger than the height of any box, because
+boxes stick out!</p>
+<p>I don’t know a great solution here. A hack is to say something like
+<span class="display"><code>p &gt; code { line-height: 0px; }</code></span>
+such that text set in monospace font doesn’t affect line height calculation. Counter-intuitively,
+this will work even if the line is entirely monospace (see <code>strut</code> in the abovelinked article).</p>
+</section>
+]]></content></entry><entry
+  ><title type="text">Inverse Triangle Inequality</title><link
+      href="https://matklad.github.io/2025/07/07/inverse-triangle-inequality.html"
+      rel="alternate"
+      type="text/html"
+      title="Inverse Triangle Inequality"
+    /><published>2025-07-07T00:00:00+00:00</published><updated
+    >2025-07-07T00:00:00+00:00</updated><id
+    >https://matklad.github.io/2025/07/07/inverse-triangle-inequality</id><author
+    ><name>Alex Kladov</name></author><summary
+      type="html"
+    ><![CDATA[<math> <mrow> <mo>|</mo><mi>A</mi><mi>C</mi><mo>|</mo> <mo>&lt;</mo> <mo>|</mo><mi>A</mi> <mi>B</mi><mo>|</mo> <mo>+</mo> <mo>|</mo><mi>B</mi><mi>C</mi><mo>|</mo> </mrow> </math>
+is one of the most hardworking inequalities in mathematics. It illustrates an obvious fact --- the fastest way to go from point A to point C is to go directly, without detours:]]></summary><content
+      type="html"
+      xml:base="https://matklad.github.io/2025/07/07/inverse-triangle-inequality.html"
+    ><![CDATA[
+<header>
+  <h1>Inverse Triangle Inequality</h1>
+  <time class="meta" datetime="2025-07-07">Jul 7, 2025</time>
+</header>
+<p><math> <mrow> <mo>|</mo><mi>A</mi><mi>C</mi><mo>|</mo> <mo>&lt;</mo> <mo>|</mo><mi>A</mi> <mi>B</mi><mo>|</mo> <mo>+</mo> <mo>|</mo><mi>B</mi><mi>C</mi><mo>|</mo> </mrow> </math>
+is one of the most hardworking inequalities in mathematics. It illustrates an obvious fact — the fastest way to go from point A to point C is to go directly, without detours:</p>
+<svg width="100%" viewBox="0 0 500 200" xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg">
+  <line stroke="red" stroke-width="2" x1="30" x2="132.38" y1="130" y2="79.21"/>
+  <line stroke="green" stroke-width="2" x1="132.38" x2="201.43" y1="79.21" y2="130"/>
+  <line stroke="blue" stroke-width="2" x1="30" x2="201.43" y1="130" y2="130"/>
+  <text font-family="sans-serif" x="15" y="145">A</text>
+  <text font-family="sans-serif" x="125.38" y="69.21">B</text>
+  <text font-family="sans-serif" x="211.43" y="145">C</text>
+  <line stroke="red" stroke-width="2" x1="266.43" x2="380.72" y1="89.27" y2="89.27"/>
+  <line stroke="green" stroke-width="2" x1="380.72" x2="466.43" y1="89.27" y2="89.27"/>
+  <text font-family="sans-serif" x="256.43" y="79.27">A</text>
+  <text font-family="sans-serif" x="373.72" y="79.27">B</text>
+  <text font-family="sans-serif" x="459.43" y="79.27">C</text>
+  <line stroke="blue" stroke-width="2" x1="266.43" x2="437.86" y1="129.27" y2="129.27"/>
+  <text font-family="sans-serif" x="256.43" y="149.27">A</text>
+  <text font-family="sans-serif" x="427.86" y="149.27">C</text>
+</svg>
+<p>This is a tremendously useful inequality, not because most of the mathematics lives on the Euclidean
+plane, but because it works in many different contexts. For example, you could measure distance the
+<a href="https://en.wikipedia.org/wiki/Taxicab_geometry">Manhattan way</a>, as a sum of vertical and horizontal
+displacements, and the inequality still holds. Or you could measure <a href="https://en.wikipedia.org/wiki/Levenshtein_distance">Levenshtein
+distance</a> between DNA strings, and observe the
+same inequality. The inequality is definitional — if you have a notion of distance between some
+kinds of objects that obeys triangle inequality (and some other obvious properties), you immediately
+get a metric space with a bunch of useful properties.</p>
+<p>I like to think about software engineering as a mischievous younger sibling of mathematics, who
+respects all the hard work that went into theorems, but doesn’t hesitate to give them a more
+light-hearted and silly touch.</p>
+<p>In programming, I find myself referring again and again to the idea of <em>inverse</em> of triangle inequality,
+<math> <mrow> <mo>|</mo><mi>A</mi><mi>C</mi><mo>|</mo> <mo>&gt;</mo> <mo>|</mo><mi>A</mi> <mi>B</mi><mo>|</mo> <mo>+</mo> <mo>|</mo><mi>B</mi><mi>C</mi><mo>|</mo> </mrow> </math>.
+If you need to go from A to C, it is almost always easier to reach midpoint B first!</p>
+<section id="Smaller-Commits">
+
+<h2><a href="#Smaller-Commits">Smaller Commits</a></h2>
+<p>Split large pull requests into smaller ones. Land simple, uncontroversial cleanups fast, and leave
+only meaningful changes up for discussion. Don’t let work already done linger behind uncertain
+design decisions.</p>
+<p>There are many sub-genres here. Often, you notice an unrelated cleanup, file it right away as a
+separate PR. Sometimes, the cleanup is very much related and required to enable what you set out to
+do, but it can also stand on its own. If it can, it should! In many cases, “the thing” itself can be
+sliced up. When upgrading to a newer language version recently, we significantly reduced the diff by
+splitting out the changes that worked under both the new and the old version into a series of
+preparation pull requests.</p>
+<p>If you follow obvious development practices (no flaky tests,
+<a href="https://graydon2.dreamwidth.org/1597.html">not rocket science rule</a>, programmers prioritize
+reviewing code over writing more code), such PR chunking significantly reduces the time
+to land the aggregate work in: small increments land with the latency of the CI, because the review
+is trivial, and bigger increments land faster because the discussion is focused on the meaningful
+changes to the behavior of the software, and not on the large diff itself.</p>
+<p>Note, however, that the “size” of commit/pull-request is only a proxy! The <em>actual</em> advice is to
+find <em>independent</em> work. While it is true that bigger changes <em>usually</em> tend to be composed of
+several independent, smaller changes, that is not always true. Most of my commits are tiny-tiny “fix
+punctuation in a comment”, “clarify variable name”, etc, but occasionally I do a massive change in
+one go, if it can’t be reasonably split.</p>
+</section>
+<section id="Smaller-Refactors">
+
+<h2><a href="#Smaller-Refactors">Smaller Refactors</a></h2>
+<p>On a smaller scale, often when changing this and that, you can change this, and <em>then</em> change that.
+One common pattern is that doing something requires threading some sort of parameter through a body
+of code. Thread the parameter first, <em>without</em> actually doing the thing. Once the parameter is
+there, apply change to the logic. That way, you split a massive diff that changes the logic into a
+massive diff that just mechanically threads stuff, and a small diff that changes logic. This merits
+emphasizing, so let me repeat. There are two metrics to a code diff: number of lines changed, and
+the trickiness of logic. Many, many diffs change a lot of lines, and also contain tricky logic, but
+the tricky logic is only small part of affected lines. It is well-worth trying to split such a diff
+into two, one that just mindlessly applies a simple transformation to a large body of code, and the
+other that has all the smarts in a single file.</p>
+<p>As a specific example here, when refactoring a popular API, I like to put the focused change to the
+API itself and the shotgun change to all the callers into separate commits. Yes, that means that
+after the first commit the code doesn’t build. No, I do not care about that because the not rocket
+science rule of software engineering only guarantees that the sequence of merge commits in the main
+branch passes all the tests, and such a merge commit is a unit of <code>git-bisect</code>.</p>
+<p>Another example (due to John Carmack I believe) is that, when you want to refactor to <em>change</em>
+something, you should start with <em>duplicating</em> the implementation, then <em>changing</em> the copy, then
+changing the call-sites to use the new copy, and finally with eliminating the original. This scales
+down! When I want to <em>change</em> a <code>switch</code> statement inside a single function, I first <em>copy</em> it, and
+change my copy. I have original visible just above (or in a split, if that’s a large switch), and
+having it immediately available makes it much easier to copy-paste old fragments into the new
+version. Any change can be decomposed into an addition and a deletion, and it’s usually worth it.</p>
+</section>
+<section id="Smaller-Releases">
+
+<h2><a href="#Smaller-Releases">Smaller Releases</a></h2>
+<p>Releasing software is often a stressful and a time-consuming affair. The solution is simple: do more
+releases. For software that needs to be delivered to the users, I find that a weekly cadence works
+best: you prepare a release on Friday, let fuzzers&amp;early adopters kick the tires during the weekend,
+and promote the release to latest on Monday. The killer feature? Because releases are so frequent,
+completely skipping a release is not a problem at all. So, if there’s any doubt about code being
+good on Monday, you just skip one, and then have a whole week to investigate. Because the diff
+between two releases is small, it’s much easier to assess the riskiness of the release, you reduce
+the risk of forgetting an important change, and, should the things go south, you <em>massively</em>
+simplify incident mitigation, because the circle of potential culprits is so narrow.</p>
+<p>Conversely, on the upgrading side, it’s easier to do a boring, routine upgrade every week, with an
+occasional manual intervention, than to go through a giant list of breaking changes once a year,
+trying to figure out what might be breaking silently.</p>
+</section>
+<section id="Extra-Mile">
+
+<h2><a href="#Extra-Mile">Extra Mile</a></h2>
+<p>Curiously, we have an almost opposite (actually, complementary) principle at
+<a href="http://github.com/tigerbeetle/tigerbeetle">TigerBeetle</a>. We generally try to put a bit of extra
+into code we write. It’s ok if a PR takes a day, a week, or a month longer to land, if we are able
+to explore the problem space more thoroughly, and solve the issue fully, rather than applying a
+simplest, smallest change to mitigate it. Spending time to get things exactly right is worth it,
+because the code is an asset, it will pay for itself many times over during its lifetime.</p>
+<p>Deep cuts approach mitigates the main risk of incremental, one inverse-triangle-inequality step at a
+time approach — getting stuck in the local optimum. Going from A to Z one letter at a time might
+be fun and easy, unless you realize around K that Z is not the place you want to finish at. Undoing
+partial work is messy. In contrast, spiking the full solution in one go, and then going an extra
+mile to explore beyond its boundaries gives you way more confidence that the code you are writing is
+the code you should be writing.</p>
+<p>Another benefit of always doing one step deeper is that it minimizes context switches. Writing code
+is very easy. Reading is much harder. Code is a projection of the mental model of software from your
+head, writing, projecting, is an easy, mechanical task, while reconstructing the model from code is
+necessarily more involved. If you switched mental gears to think about a problem, you might as well
+think it through, write down the results, and then never return back!</p>
+<p>I often combine the two approaches. I do the same work twice. The first cut is an end-to-end
+solution with some corner-cutting and extremely messy git history. The goal is to explore, to try
+many approaches and find the one that fits. After I am satisfied with the end goal, I redo the work
+again, this time as a series of independent, incremental changes and refactors. The second time, I
+often end up doing things slightly differently, <em>immediate</em> rewrites are much cheaper than
+after-the-fact rewrites, but still allow you to see the problem under a different angle.</p>
+</section>
+]]></content></entry></feed>
