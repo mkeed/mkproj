@@ -23,6 +23,19 @@ pub const XmlDoc = struct {
         self.arena.deinit();
         alloc.destroy(self.arena);
     }
+
+    pub fn search(self: XmlDoc) void {
+        for (self.root.subNode) |n| {
+            switch (n) {
+                .text => |t| {
+                    std.log.err("[{s}]", .{t});
+                },
+                .node => |s_n| {
+                    std.log.err("[{s}]", .{s_n.name});
+                },
+            }
+        }
+    }
 };
 
 const magic_number = "<?xml";
@@ -43,16 +56,19 @@ const Reader = struct {
             }
         }
     }
-    pub fn until(self: *Reader, data: u8) ![]const u8 {
+    pub fn until(self: *Reader, data: []const u8) ![]const u8 {
         const start = self.idx;
-        for (self.data[self.idx..], 0..) |ch, len| {
-            if (data == ch) {
-                self.idx += len + 1;
-
-                return self.data[start .. self.idx - 1];
-            }
+        if (std.mem.indexOfPos(u8, self.data, self.idx, data)) |pos| {
+            self.idx = pos + data.len;
+            return self.data[start..pos];
         }
         return error.EndOfStream;
+    }
+    pub fn match(self: *Reader, data: []const u8) bool {
+        if (self.idx + data.len < self.data.len) {
+            return std.mem.eql(u8, self.data[self.idx..][0..data.len], data);
+        }
+        return false;
     }
 };
 
@@ -63,12 +79,14 @@ const SubNode = union(enum) {
 
 const Node = struct {
     name: []const u8,
+    attrs: []const u8,
     subNode: []const SubNode,
 };
 
 const NodeBuilder = struct {
     const ActiveNode = struct {
         name: []const u8,
+        attrs: []const u8,
         subItems: std.ArrayList(SubNode),
     };
     alloc: std.mem.Allocator,
@@ -82,19 +100,34 @@ const NodeBuilder = struct {
         try self.stack.items[self.stack.items.len - 1].subItems.append(self.alloc, .{ .text = data });
         //std.log.err("[{} => `{s}`]", .{ self.depth, data });
     }
-
+    fn parse_tag(data: []const u8) !struct {
+        name: []const u8,
+        attrs: []const u8,
+    } {
+        var split = std.mem.splitScalar(u8, data, ' ');
+        const name = split.next() orelse return error.TODO;
+        const attrs = split.rest();
+        return .{
+            .name = name,
+            .attrs = attrs,
+        };
+    }
     pub fn push_node(self: *NodeBuilder, tag: []const u8) !void {
-        try self.stack.append(self.alloc, .{ .name = "TODO", .subItems = .{} });
+        const tag_info = try parse_tag(tag);
+        try self.stack.append(self.alloc, .{ .name = tag_info.name, .attrs = tag_info.attrs, .subItems = .{} });
         self.depth += 1;
-        _ = tag;
+
         //std.log.err("push[{} => {s}]", .{ self.depth, tag });
     }
 
     pub fn pop_node(self: *NodeBuilder, tag: []const u8) !*Node {
         var builder_node = self.stack.pop() orelse return error.TooManyCloses;
+
+        std.log.err("Pop node [{s}] ]", .{builder_node.name});
         const node = try self.alloc.create(Node);
         node.* = .{
             .name = builder_node.name,
+            .attrs = builder_node.attrs,
             .subNode = try builder_node.subItems.toOwnedSlice(self.alloc),
         };
         self.depth -= 1;
@@ -105,10 +138,11 @@ const NodeBuilder = struct {
 
     pub fn empty_node(self: *NodeBuilder, tag: []const u8) !void {
         //std.log.err("empty[{} => {s}]", .{ self.depth, tag });
-        _ = tag;
+        const tag_info = try parse_tag(tag);
         const node = try self.alloc.create(Node);
         node.* = .{
-            .name = "TODO",
+            .name = tag_info.name,
+            .attrs = tag_info.attrs,
             .subNode = &.{},
         };
         try self.stack.items[self.stack.items.len - 1].subItems.append(
@@ -129,7 +163,7 @@ pub fn parse(data: []const u8, alloc: std.mem.Allocator) !XmlDoc {
     };
     try builder.push_node("root");
     while (true) {
-        const xml_data = reader.until('<') catch |err| {
+        const xml_data = reader.until("<") catch |err| {
             switch (err) {
                 error.EndOfStream => break,
                 else => return err,
@@ -138,15 +172,23 @@ pub fn parse(data: []const u8, alloc: std.mem.Allocator) !XmlDoc {
         if (xml_data.len != 0) {
             try builder.add_text(xml_data);
         }
-        const tag = try reader.until('>');
-        if (tag[0] == '/') {
-            _ = try builder.pop_node(tag[1..]);
-        } else if (tag[tag.len - 1] == '/') {
-            _ = try builder.empty_node(tag[0 .. tag.len - 2]);
-        } else if (tag[0] == '?') {
-            std.log.err("Declaration[{s}]", .{tag});
+        if (reader.match("!--")) {
+            _ = try reader.until("-->");
+        } else if (reader.match("![CDATA[")) {
+            const cdata = try reader.until("]]>");
+
+            try builder.add_text(cdata);
         } else {
-            _ = try builder.push_node(tag);
+            const tag = try reader.until(">");
+            if (tag[0] == '/') {
+                _ = try builder.pop_node(tag[1..]);
+            } else if (tag[tag.len - 1] == '/') {
+                _ = try builder.empty_node(tag[0 .. tag.len - 2]);
+            } else if (tag[0] == '?') {
+                std.log.err("Declaration[{s}]", .{tag});
+            } else {
+                _ = try builder.push_node(tag);
+            }
         }
         reader.skipWhitespace();
     }
@@ -168,5 +210,6 @@ test {
 
     const doc = try parse(writer.written(), std.testing.allocator);
     defer doc.deinit();
+    doc.search();
     //std.lo
 }
