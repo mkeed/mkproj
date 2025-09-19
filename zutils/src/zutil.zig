@@ -1,8 +1,16 @@
 const std = @import("std");
 
+pub const Environment = struct {
+    stdout: *std.Io.Writer,
+    stdin: *std.Io.Reader,
+    stderr: *std.Io.Writer,
+    args: []const [:0]const u8,
+    alloc: std.mem.Allocator,
+};
+
 pub const Binary = struct {
     name: []const u8,
-    function: fn (args: []const [:0]const u8, alloc: std.mem.Allocator) anyerror!void,
+    function: fn (env: *Environment) anyerror!void,
 };
 
 pub const Bins = [_]Binary{
@@ -10,24 +18,11 @@ pub const Bins = [_]Binary{
         .name = "yes",
         .function = @import("yes.zig").run_func,
     },
-    .{
-        .name = "sha1sum",
-        .function = @import("sum.zig").sha1,
-    },
-    .{
-        .name = "sha224sum",
-        .function = @import("sum.zig").sha224,
-    },
-    .{
-        .name = "sha256sum",
-        .function = @import("sum.zig").sha256,
-    },
-    .{
-        .name = "sha384sum",
-        .function = @import("sum.zig").sha384,
-    },
-    .{
-        .name = "sha512sum",
-        .function = @import("sum.zig").sha512,
-    },
+    @import("sum.zig").sha1,
+    @import("sum.zig").sha224,
+    @import("sum.zig").sha256,
+    @import("sum.zig").sha384,
+    @import("sum.zig").sha512,
+    @import("sum.zig").md5,
+    @import("sum.zig").b2,
 };
