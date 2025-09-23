@@ -7,6 +7,24 @@ pub const Name = struct {
 
 pub const Import = struct {
     name: Name,
+    import: ExportInfo,
+};
+
+pub const ExportInfo = union(enum) {
+    func: Func,
+    table: Table,
+    memory: Memory,
+    global: Global,
+    tag: Tag,
+};
+
+pub const Export = struct {
+    name: Name,
+    @"export": ExportInfo,
+};
+
+pub const Function = struct {
+    blocks: []const Block,
 };
 
 pub const Binary = struct {

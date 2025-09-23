@@ -1,23 +1,42 @@
 const std = @import("std");
 const Wasm = @import("Wasm.zig").Wasm;
 
-const Reader = struct {
-    data: []const u8,
-    idx: usize = 0,
-    pub fn getSlice(self: *Reader, len: usize) ![]const u8 {
-        if (self.idx + len >= self.data.len) return error.TooSmall;
-        defer self.idx += len;
-        return self.data[self.idx..][0..len];
-    }
-    pub fn expect(self: *Reader, data: []const u8) !void {
-        const val = try self.getSlice(data.len);
-        if (std.mem.eql(u8, val, data) == false) return error.Invalid;
-    }
+const SectionId = enum(u8) {
+    custom = 0,
+    type = 1,
+    import = 2,
+    function = 3,
+    table = 4,
+    memory = 5,
+    global = 6,
+    @"export" = 7,
+    start = 8,
+    element = 9,
+    code = 10,
+    data = 11,
+    data_count = 12,
+    tag = 13,
 };
 
-fn parseFile(alloc: std.mem.Allocator, data: []const u8) !Wasm {
+fn take_magic_and_version(reader: *std.Io.Reader) !void {
+    const magic = try reader.takeArray(4);
+    const version = try reader.takeArray(4);
+    if (std.mem.eql(u8, magic, "\x00asm") == false) return error.BadMagic;
+    if (std.mem.eql(u8, version, "\x01\x00\x00\x00") == false) return error.BadVersion;
+}
+
+fn parseFile(alloc: std.mem.Allocator, file_data: []const u8) !Wasm {
+    var reader = std.Io.Reader.fixed(file_data);
+    try take_magic_and_version(&reader);
     _ = alloc;
-    std.log.err("[{x}]", .{data[0..16]});
+    while (true) {
+        const section = reader.takeEnum(SectionId, .big) catch break;
+
+        const len = try reader.takeLeb128(u32);
+        const data = try reader.take(len);
+        std.log.err("[{} => {x}]", .{ section, data });
+    }
+
     return .{};
 }
 
