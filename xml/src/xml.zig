@@ -24,13 +24,15 @@ pub const XmlDoc = struct {
         alloc.destroy(self.arena);
     }
 
-    pub fn search(self: XmlDoc) void {
+    pub fn search(self: XmlDoc, items: []const []const u8) void {
+        std.log.err("num nodes:[{}]", .{self.root.subNode.len});
         for (self.root.subNode) |n| {
             switch (n) {
                 .text => |t| {
                     std.log.err("[{s}]", .{t});
                 },
                 .node => |s_n| {
+                    if (std.mem.eql(u8, items[0], s_n.name)) {}
                     std.log.err("[{s}]", .{s_n.name});
                 },
             }
@@ -122,8 +124,7 @@ const NodeBuilder = struct {
 
     pub fn pop_node(self: *NodeBuilder, tag: []const u8) !*Node {
         var builder_node = self.stack.pop() orelse return error.TooManyCloses;
-
-        std.log.err("Pop node [{s}] ]", .{builder_node.name});
+        _ = tag;
         const node = try self.alloc.create(Node);
         node.* = .{
             .name = builder_node.name,
@@ -131,8 +132,14 @@ const NodeBuilder = struct {
             .subNode = try builder_node.subItems.toOwnedSlice(self.alloc),
         };
         self.depth -= 1;
-        _ = tag;
-        //std.log.err("pop[{} => {s}]", .{ self.depth, tag });
+        if (self.stack.items.len > 0) {
+            try self.stack.items[self.stack.items.len - 1].subItems.append(
+                self.alloc,
+                .{ .node = node },
+            );
+        }
+
+        //std.log.err("pop[{}:{s}[{}] => {s}]", .{ self.depth, builder_node.name, node.subNode.len, tag });
         return node;
     }
 
@@ -185,7 +192,7 @@ pub fn parse(data: []const u8, alloc: std.mem.Allocator) !XmlDoc {
             } else if (tag[tag.len - 1] == '/') {
                 _ = try builder.empty_node(tag[0 .. tag.len - 2]);
             } else if (tag[0] == '?') {
-                std.log.err("Declaration[{s}]", .{tag});
+                //std.log.err("Declaration[{s}]", .{tag});
             } else {
                 _ = try builder.push_node(tag);
             }
@@ -210,6 +217,6 @@ test {
 
     const doc = try parse(writer.written(), std.testing.allocator);
     defer doc.deinit();
-    doc.search();
+    doc.search(&.{ "protocol", "interface" });
     //std.lo
 }
