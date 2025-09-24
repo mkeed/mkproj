@@ -73,7 +73,25 @@ const Node = struct {
     name: []const u8,
     attrs: AttrMap,
     subNode: []const SubNode,
-    //pub fn iterator(self: Node, selectors: []const Selector)
+    pub const Selector = union(enum) {
+        name: []const u8,
+    };
+    pub const Iterator = struct {
+        root: Node,
+        selectors: []const Selector,
+        state: []?usize,
+
+        pub fn next(self: *Iterator) ?Node {}
+    };
+    pub fn iterator(self: Node, selectors: []const Selector, state: []?usize) Iterator {
+        for (state) |*s| s.* = null;
+        state[0] = 0;
+        return .{
+            .root = self,
+            .selectors = selectors,
+            .state = state,
+        };
+    }
     pub fn search(self: Node, items: []const []const u8) void {
         if (items.len == 0) {
             var iter = self.attrs.iterator();
