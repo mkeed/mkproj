@@ -26,17 +26,7 @@ pub const XmlDoc = struct {
 
     pub fn search(self: XmlDoc, items: []const []const u8) void {
         std.log.err("num nodes:[{}]", .{self.root.subNode.len});
-        for (self.root.subNode) |n| {
-            switch (n) {
-                .text => |t| {
-                    std.log.err("[{s}]", .{t});
-                },
-                .node => |s_n| {
-                    if (std.mem.eql(u8, items[0], s_n.name)) {}
-                    std.log.err("[{s}]", .{s_n.name});
-                },
-            }
-        }
+        self.root.search(items);
     }
 };
 
@@ -81,14 +71,37 @@ const SubNode = union(enum) {
 
 const Node = struct {
     name: []const u8,
-    attrs: []const u8,
+    attrs: AttrMap,
     subNode: []const SubNode,
+    //pub fn iterator(self: Node, selectors: []const Selector)
+    pub fn search(self: Node, items: []const []const u8) void {
+        if (items.len == 0) {
+            var iter = self.attrs.iterator();
+            while (iter.next()) |kv| {
+                std.log.err("[{s}] => [{s}]", .{ kv.key_ptr.*, kv.value_ptr.* });
+            }
+            return;
+        }
+        for (self.subNode) |n| {
+            switch (n) {
+                .text => |t| {
+                    //std.log.err("text:[{s}]", .{t});
+                    _ = t;
+                },
+                .node => |s_n| {
+                    if (std.mem.eql(u8, items[0], s_n.name)) {
+                        s_n.search(items[1..]);
+                    }
+                },
+            }
+        }
+    }
 };
-
+const AttrMap = std.StringArrayHashMapUnmanaged([]const u8);
 const NodeBuilder = struct {
     const ActiveNode = struct {
         name: []const u8,
-        attrs: []const u8,
+        attrs: AttrMap,
         subItems: std.ArrayList(SubNode),
     };
     alloc: std.mem.Allocator,
@@ -102,20 +115,41 @@ const NodeBuilder = struct {
         try self.stack.items[self.stack.items.len - 1].subItems.append(self.alloc, .{ .text = data });
         //std.log.err("[{} => `{s}`]", .{ self.depth, data });
     }
-    fn parse_tag(data: []const u8) !struct {
+    fn parse_tag(data: []const u8, alloc: std.mem.Allocator) !struct {
         name: []const u8,
-        attrs: []const u8,
+        attrs: AttrMap,
     } {
+        //std.log.err("tag:[{s}]", .{data});
+
         var split = std.mem.splitScalar(u8, data, ' ');
-        const name = split.next() orelse return error.TODO;
+        const name = std.mem.trim(u8, split.next() orelse return error.TODO, &std.ascii.whitespace);
         const attrs = split.rest();
+        var idx: usize = 0;
+        var map = AttrMap{};
+        //std.log.err("attrs:[{s}]", .{attrs});
+        while (idx < attrs.len) {
+            if (std.mem.indexOfNonePos(u8, attrs, idx, &std.ascii.whitespace)) |p| idx = p;
+            const start = idx;
+            if (std.mem.indexOfPos(u8, attrs, idx, "=")) |end_name| {
+                const attr_name = std.mem.trim(u8, attrs[start..end_name], &std.ascii.whitespace);
+                idx = end_name + 1;
+                const start_value = std.mem.indexOfPos(u8, attrs, idx, "\"") orelse return error.Invalid;
+                idx = start_value + 1;
+                const end_value = std.mem.indexOfPos(u8, attrs, idx, "\"") orelse return error.Invalid;
+                try map.put(alloc, attr_name, attrs[start_value + 1 .. end_value]);
+                idx = end_value + 1;
+            } else {
+                break;
+            }
+        }
+
         return .{
             .name = name,
-            .attrs = attrs,
+            .attrs = map,
         };
     }
     pub fn push_node(self: *NodeBuilder, tag: []const u8) !void {
-        const tag_info = try parse_tag(tag);
+        const tag_info = try parse_tag(tag, self.alloc);
         try self.stack.append(self.alloc, .{ .name = tag_info.name, .attrs = tag_info.attrs, .subItems = .{} });
         self.depth += 1;
 
@@ -145,7 +179,7 @@ const NodeBuilder = struct {
 
     pub fn empty_node(self: *NodeBuilder, tag: []const u8) !void {
         //std.log.err("empty[{} => {s}]", .{ self.depth, tag });
-        const tag_info = try parse_tag(tag);
+        const tag_info = try parse_tag(tag, self.alloc);
         const node = try self.alloc.create(Node);
         node.* = .{
             .name = tag_info.name,
@@ -190,7 +224,7 @@ pub fn parse(data: []const u8, alloc: std.mem.Allocator) !XmlDoc {
             if (tag[0] == '/') {
                 _ = try builder.pop_node(tag[1..]);
             } else if (tag[tag.len - 1] == '/') {
-                _ = try builder.empty_node(tag[0 .. tag.len - 2]);
+                _ = try builder.empty_node(tag[0 .. tag.len - 1]);
             } else if (tag[0] == '?') {
                 //std.log.err("Declaration[{s}]", .{tag});
             } else {
@@ -204,19 +238,23 @@ pub fn parse(data: []const u8, alloc: std.mem.Allocator) !XmlDoc {
 }
 
 test {
-    const filename = "/usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml";
-    var file = try std.fs.openFileAbsolute(filename, .{});
-    defer file.close();
-    var buf: [4096]u8 = undefined;
-    var reader = file.reader(&buf);
-
     var writer = std.Io.Writer.Allocating.init(std.testing.allocator);
     defer writer.deinit();
+    if (false) {
+        const filename = "/usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml";
+        var file = try std.fs.openFileAbsolute(filename, .{});
+        defer file.close();
+        var buf: [4096]u8 = undefined;
+        var reader = file.reader(&buf);
 
-    _ = try writer.writer.sendFile(&reader, .unlimited);
+        _ = try writer.writer.sendFile(&reader, .unlimited);
+    } else {
+        const file_data = @embedFile("feed.xml");
+        _ = try writer.writer.write(file_data);
+    }
 
     const doc = try parse(writer.written(), std.testing.allocator);
     defer doc.deinit();
-    doc.search(&.{ "protocol", "interface" });
+    doc.search(&.{ "feed", "entry" });
     //std.lo
 }
