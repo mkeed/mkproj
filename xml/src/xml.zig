@@ -75,23 +75,47 @@ const Node = struct {
     subNode: []const SubNode,
     pub const Selector = union(enum) {
         name: []const u8,
-    };
-    pub const Iterator = struct {
-        root: Node,
-        selectors: []const Selector,
-        state: []?usize,
 
-        pub fn next(self: *Iterator) ?Node {}
+        pub fn match(self: Selector, node: SubNode) bool {
+            switch (node) {
+                .node => |s_n| {
+                    switch (self) {
+                        .name => |name| {
+                            return std.mem.eql(u8, name, s_n.name);
+                        },
+                    }
+                },
+                else => return false,
+            }
+        }
     };
-    pub fn iterator(self: Node, selectors: []const Selector, state: []?usize) Iterator {
-        for (state) |*s| s.* = null;
-        state[0] = 0;
-        return .{
-            .root = self,
-            .selectors = selectors,
-            .state = state,
-        };
+
+    pub fn get_nodes(
+        self: Node,
+        items: []const Selector,
+        list: *std.ArrayList(*Node),
+        alloc: std.mem.Allocator,
+    ) !void {
+        for (self.subNode) |n| {
+            switch (n) {
+                .text => |t| {
+                    //std.log.err("text:[{s}]", .{t});
+                    _ = t;
+                },
+                .node => |s_n| {
+                    if (items[0].match(n)) {
+                        if (items.len == 1) {
+                            try list.append(alloc, s_n);
+                        } else {
+                            try s_n.get_nodes(items[1..], list, alloc);
+                        }
+                    }
+                },
+            }
+        }
+        //
     }
+
     pub fn search(self: Node, items: []const []const u8) void {
         if (items.len == 0) {
             var iter = self.attrs.iterator();
@@ -270,9 +294,18 @@ test {
         const file_data = @embedFile("feed.xml");
         _ = try writer.writer.write(file_data);
     }
-
-    const doc = try parse(writer.written(), std.testing.allocator);
+    const alloc = std.testing.allocator;
+    const doc = try parse(writer.written(), alloc);
     defer doc.deinit();
     doc.search(&.{ "feed", "entry" });
+    var al = std.ArrayList(*Node){};
+    defer al.deinit(alloc);
+    try doc.root.get_nodes(&.{
+        .{ .name = "feed" },
+        .{ .name = "entry" },
+    }, &al, alloc);
+    for (al.items) |i| {
+        std.log.err("{s}", .{i.name});
+    }
     //std.lo
 }
